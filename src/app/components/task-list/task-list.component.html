@@ -83,10 +83,10 @@
         <footer class="task-list__task-footer">
           <div class="task-list__task-date">
             <span aria-hidden="true">📅</span>
-            <time [attr.datetime]="task.createdAt.toISOString()">
+            <time [attr.datetime]="formatDateIso(task.createdAt)">
               Created {{ formatDate(task.createdAt) }}
             </time>
-            @if (task.updatedAt.getTime() !== task.createdAt.getTime()) {
+            @if (getSafeDate(task.updatedAt).getTime() !== getSafeDate(task.createdAt).getTime()) {
               <span class="task-list__task-updated">
                 • Updated {{ formatDate(task.updatedAt) }}
               </span>

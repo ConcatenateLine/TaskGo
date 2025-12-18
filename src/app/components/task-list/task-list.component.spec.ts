@@ -89,6 +89,7 @@ describe('TaskListComponent', () => {
   describe('Template Rendering - Empty State', () => {
     beforeEach(() => {
       taskService.getTasksByStatusAndProject.mockReturnValue([]);
+      component.forceRefresh();
       fixture.detectChanges();
     });
 
