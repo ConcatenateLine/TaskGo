@@ -156,19 +156,28 @@ export class TaskListComponent {
   }
 
   /**
-   * Handle very long titles safely
-   */
-  getTruncatedTitle(task: Task, maxLength: number = 50): string {
+    * Handle very long titles safely
+    */
+  getTruncatedTitle(task: Task, maxLength: number = 500): string {
     const sanitized = this.getSanitizedTitle(task);
     if (sanitized.length > maxLength) {
-      return sanitized.substring(0, maxLength) + '...';
+      return sanitized.substring(0, maxLength - 3) + '...';
     }
     return sanitized;
   }
 
+
+
   /**
-   * Get inline style for priority badge color
+   * Get CSS classes for project badge (no inline styles)
    */
+  getProjectBadgeClasses(project: Task['project']): string {
+    return `task-list__badge task-list__badge--project task-list__badge--project-${project.toLowerCase()}`;
+  }
+
+  /**
+    * Get inline style for priority badge color
+    */
   getPriorityBadgeStyle(priority: Task['priority']): { [key: string]: string } {
     return {
       'background-color': PRIORITY_COLORS[priority],
@@ -178,13 +187,6 @@ export class TaskListComponent {
       'font-size': '12px',
       'font-weight': '500'
     };
-  }
-
-  /**
-   * Get CSS classes for project badge (no inline styles)
-   */
-  getProjectBadgeClasses(project: Task['project']): string {
-    return `task-list__badge task-list__badge--project task-list__badge--project-${project.toLowerCase()}`;
   }
 
   getStatusDisplay(status: Task['status']): string {

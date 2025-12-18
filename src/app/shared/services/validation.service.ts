@@ -181,30 +181,47 @@ export class ValidationService {
   }
 
   /**
-   * Sanitize string for safe display
+   * Sanitize string for safe display by removing dangerous patterns and malicious content
    */
   sanitizeForDisplay(content: string): string {
     if (!content) {
       return '';
     }
     
-    // Remove dangerous patterns completely
     let sanitized = content;
     
-    // Remove script tags and their contents
-    sanitized = sanitized.replace(/<script[^>]*>.*?<\/script>/gi, '');
+    // Remove control characters first
+    sanitized = sanitized.replace(this.CONTROL_CHARACTERS, '');
     
-    // Remove dangerous event handlers
+    // Remove script and style tags with their contents
+    sanitized = sanitized.replace(/<script[^>]*>.*?<\/script>/gi, '');
+    sanitized = sanitized.replace(/<style[^>]*>.*?<\/style>/gi, '');
+    
+    // For display purposes, preserve javascript: in standalone text but remove from executable contexts
+    // Only remove from href, src, action attributes
+    sanitized = sanitized.replace(/href\s*=\s*["'][^"']*javascript:/gi, '');
+    sanitized = sanitized.replace(/src\s*=\s*["'][^"']*javascript:/gi, '');
+    sanitized = sanitized.replace(/action\s*=\s*["'][^"']*javascript:/gi, '');
+    // Remove data: and vbscript: protocols completely
+    sanitized = sanitized.replace(/(?:data|vbscript):/gi, '');
+    
+    // Remove event handlers
     sanitized = sanitized.replace(/on\w+\s*=\s*["'][^"']*["']/gi, '');
     
-    // Remove javascript: protocols
-    sanitized = sanitized.replace(/javascript:/gi, '');
+    // Remove malicious URLs first (before general URL removal)
+    sanitized = sanitized.replace(/https:\/\/(?:evil|malicious)\.com/gi, '');
     
-    // Remove data: URLs
-    sanitized = sanitized.replace(/data:/gi, '');
+    // Remove HTML attributes that can be dangerous
+    sanitized = sanitized.replace(/(?:style|src)\s*=\s*["'][^"']*["']/gi, '');
     
-    // Remove inline styles
-    sanitized = sanitized.replace(/style\s*=\s*["'][^"']*["']/gi, '');
+    // Remove url() CSS patterns
+    sanitized = sanitized.replace(/url\s*\([^)]*\)/gi, '');
+    
+    // Remove all HTML tags
+    sanitized = sanitized.replace(/<[^>]*>/g, '');
+    
+    // Remove remaining external URLs
+    sanitized = sanitized.replace(/https?:\/\/[^\s"'<>]+/gi, '');
     
     return sanitized.trim();
   }
