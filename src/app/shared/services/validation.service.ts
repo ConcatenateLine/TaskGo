@@ -197,13 +197,12 @@ export class ValidationService {
     sanitized = sanitized.replace(/<script[^>]*>.*?<\/script>/gi, '');
     sanitized = sanitized.replace(/<style[^>]*>.*?<\/style>/gi, '');
     
-    // For display purposes, preserve javascript: in standalone text but remove from executable contexts
-    // Only remove from href, src, action attributes
-    sanitized = sanitized.replace(/href\s*=\s*["'][^"']*javascript:/gi, '');
-    sanitized = sanitized.replace(/src\s*=\s*["'][^"']*javascript:/gi, '');
-    sanitized = sanitized.replace(/action\s*=\s*["'][^"']*javascript:/gi, '');
-    // Remove data: and vbscript: protocols completely
-    sanitized = sanitized.replace(/(?:data|vbscript):/gi, '');
+    // For display contexts, keep protocols visible but neutralized
+    // Remove dangerous protocols completely from display
+    // Users shouldn't see dangerous protocols even in text
+    sanitized = sanitized.replace(/javascript:/gi, '');
+    sanitized = sanitized.replace(/data:/gi, '');
+    sanitized = sanitized.replace(/vbscript:/gi, '');
     
     // Remove event handlers
     sanitized = sanitized.replace(/on\w+\s*=\s*["'][^"']*["']/gi, '');
@@ -234,6 +233,12 @@ export class ValidationService {
     
     // Remove HTML tags first
     sanitized = sanitized.replace(/<[^>]*>/g, '');
+    
+    // Remove dangerous protocols completely in storage contexts
+    // This prevents them from being stored and displayed later
+    sanitized = sanitized.replace(/javascript:/gi, '');
+    sanitized = sanitized.replace(/data:/gi, '');
+    sanitized = sanitized.replace(/vbscript:/gi, '');
     
     // For test scenarios - handle already encoded entities properly
     // If content has &lt; &gt; etc, keep them as-is
@@ -285,8 +290,70 @@ export class ValidationService {
   }
 
   /**
-   * Validate email format
-   */
+    * Sanitize HTML for safe display using Angular's DomSanitizer approach
+    */
+  sanitizeHtml(content: string): string {
+    if (!content) {
+      return '';
+    }
+    
+    // First remove dangerous elements and attributes
+    let sanitized = content;
+    
+    // Remove script tags and their content
+    sanitized = sanitized.replace(/<script[^>]*>.*?<\/script>/gi, '');
+    
+    // Remove dangerous attributes and their values more thoroughly
+    sanitized = sanitized.replace(/on\w+\s*=\s*["'][^"']*["']/gi, '');
+    
+    // Remove dangerous protocols completely from display
+    // Users shouldn't see dangerous protocols even in text
+    sanitized = sanitized.replace(/javascript:/gi, '');
+    sanitized = sanitized.replace(/data:/gi, '');
+    sanitized = sanitized.replace(/vbscript:/gi, '');
+    
+    // Remove all HTML tags for maximum security
+    sanitized = sanitized.replace(/<[^>]*>/g, '');
+    
+    // Additional cleanup - remove any remaining protocol references
+    sanitized = sanitized.replace(/:\s*javascript\s*:/gi, '');
+    sanitized = sanitized.replace(/:\s*data\s*:/gi, '');
+    sanitized = sanitized.replace(/:\s*vbscript\s*:/gi, '');
+    
+    // Encode special characters
+    return sanitized
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+      .replace(/\//g, '&#x2F;');
+  }
+
+  /**
+    * Check if input contains suspicious patterns
+    */
+  isSuspiciousInput(input: string): boolean {
+    if (!input || typeof input !== 'string') {
+      return false;
+    }
+    
+    const suspiciousPatterns = [
+      /<script[^>]*>/gi,
+      /javascript:/gi,
+      /on\w+\s*=/gi,
+      /<iframe[^>]*>/gi,
+      /eval\s*\(/gi,
+      /exec\s*\(/gi,
+      /expression\s*\(/gi
+    ];
+    
+    return suspiciousPatterns.some(pattern => pattern.test(input));
+  }
+
+  /**
+    * Validate email format
+    */
   validateEmail(email: string): { isValid: boolean; error?: string } {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {

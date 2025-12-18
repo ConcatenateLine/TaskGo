@@ -252,8 +252,9 @@ describe('TaskListComponent', () => {
       const taskTitles = fixture.debugElement.queryAll(By.css('.task-list__task-title'));
       const titleContent = taskTitles[1].nativeElement.textContent;
       
-      // Should display the literal text, not execute the protocol
-      expect(titleContent).toContain('javascript:alert("JS Protocol")');
+      // Should remove dangerous protocol completely for security
+      expect(titleContent).not.toContain('javascript:');
+      expect(titleContent).toContain('alert("JS Protocol")');
     });
 
     it('should prevent XSS through ARIA attributes', () => {
