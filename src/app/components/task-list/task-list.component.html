@@ -1,129 +1,142 @@
-<!-- Task List Header -->
-<div class="task-list__header">
-  <h1 class="task-list__title">Tasks</h1>
-  
-  <div class="task-list__counts">
-    @if (taskCounts(); as counts) {
-      <div class="task-list__count">
-        <span>To Do</span>
-        <span class="task-list__count-number">{{ counts.todo }}</span>
-      </div>
-      <div class="task-list__count">
-        <span>In Progress</span>
-        <span class="task-list__count-number">{{ counts.inProgress }}</span>
-      </div>
-      <div class="task-list__count">
-        <span>Done</span>
-        <span class="task-list__count-number">{{ counts.done }}</span>
-      </div>
-      <div class="task-list__count">
-        <span>Total</span>
-        <span class="task-list__count-number">{{ counts.total }}</span>
-      </div>
-    }
-  </div>
-</div>
-
-<!-- Empty State -->
-@if (isEmpty()) {
-  <div class="task-list__empty">
-    <div class="task-list__empty-icon">📋</div>
-    <h2 class="task-list__empty-title">No tasks</h2>
-    <p class="task-list__empty-description">
-      Start by creating your first task to get organized!
-    </p>
-    <button 
-      class="task-list__create-btn"
-      (click)="onCreateTask()"
-      aria-label="Create new task"
-    >
-      + Create Task
-    </button>
+<!-- Error Display -->
+@if (hasError()) {
+  <div class="task-list__error">
+    <span class="task-list__error-icon">⚠️</span>
+    <span>{{ getErrorMessage() }}</span>
   </div>
 } @else {
-  <!-- Tasks List -->
-  <div class="task-list__tasks">
-    @for (task of sortedTasks(); track task.id) {
-      <article class="task-list__task" tabindex="0" role="article">
-        <header class="task-list__task-header">
-          <h2 class="task-list__task-title">{{ task.title }}</h2>
-          <div class="task-list__task-badges">
-            <!-- Priority Badge -->
-            <span 
-              class="task-list__badge task-list__badge--priority task-list__badge--priority-{{ task.priority }}"
-              [style.backgroundColor]="getPriorityColor(task.priority)"
-              aria-label="Priority: {{ task.priority }}"
-            >
-              {{ task.priority }}
-            </span>
-            
-            <!-- Project Badge -->
-            <span 
-              class="task-list__badge task-list__badge--project task-list__badge--project-{{ task.project.toLowerCase() }}"
-              [style.backgroundColor]="getProjectColor(task.project)"
-              aria-label="Project: {{ task.project }}"
-            >
-              {{ task.project }}
-            </span>
-            
-            <!-- Status Badge -->
-            <span 
-              class="task-list__badge task-list__badge--status"
-              aria-label="Status: {{ getStatusDisplay(task.status) }}"
-            >
-              {{ getStatusDisplay(task.status) }}
-            </span>
-          </div>
-        </header>
-        
-        @if (task.description) {
-          <p class="task-list__task-description">{{ task.description }}</p>
-        }
-        
-        <footer class="task-list__task-footer">
-          <div class="task-list__task-date">
-            <span aria-hidden="true">📅</span>
-            <time [attr.datetime]="formatDateIso(task.createdAt)">
-              Created {{ formatDate(task.createdAt) }}
-            </time>
-            @if (getSafeDate(task.updatedAt).getTime() !== getSafeDate(task.createdAt).getTime()) {
-              <span class="task-list__task-updated">
-                • Updated {{ formatDate(task.updatedAt) }}
-              </span>
-            }
-          </div>
-          
-          <div class="task-list__task-actions">
-            <button 
-              class="task-list__action-btn task-list__action-btn--edit"
-              (click)="onTaskAction(task.id, 'edit')"
-              aria-label="Edit task: {{ task.title }}"
-            >
-              ✏️ Edit
-            </button>
-            <button 
-              class="task-list__action-btn task-list__action-btn--delete"
-              (click)="onTaskAction(task.id, 'delete')"
-              aria-label="Delete task: {{ task.title }}"
-            >
-              🗑️ Delete
-            </button>
-          </div>
-        </footer>
-      </article>
-    }
+  <!-- Task List Header -->
+  <div class="task-list__header">
+    <h1 class="task-list__title">Tasks</h1>
+    
+    <div class="task-list__counts">
+      @if (taskCounts(); as counts) {
+        <div class="task-list__count">
+          <span>To Do</span>
+          <span class="task-list__count-number">{{ counts.todo }}</span>
+        </div>
+        <div class="task-list__count">
+          <span>In Progress</span>
+          <span class="task-list__count-number">{{ counts.inProgress }}</span>
+        </div>
+        <div class="task-list__count">
+          <span>Done</span>
+          <span class="task-list__count-number">{{ counts.done }}</span>
+        </div>
+        <div class="task-list__count">
+          <span>Total</span>
+          <span class="task-list__count-number">{{ counts.total }}</span>
+        </div>
+      }
+    </div>
   </div>
-}
 
-<!-- Create Task Button (when tasks exist) -->
-@if (!isEmpty()) {
-  <div style="text-align: center; margin-top: 2rem;">
-    <button 
-      class="task-list__create-btn"
-      (click)="onCreateTask()"
-      aria-label="Create new task"
-    >
-      + Create Task
-    </button>
-  </div>
+  <!-- Empty State -->
+  @if (isEmpty()) {
+    <div class="task-list__empty">
+      <div class="task-list__empty-icon">📋</div>
+      <h2 class="task-list__empty-title">No tasks</h2>
+      <p class="task-list__empty-description">
+        Start by creating your first task to get organized!
+      </p>
+      <button 
+        class="task-list__create-btn"
+        (click)="onCreateTask()"
+        aria-label="Create new task"
+      >
+        + Create Task
+      </button>
+    </div>
+  } @else {
+    <!-- Tasks List -->
+    <div class="task-list__tasks">
+      @for (task of sortedTasks(); track task.id) {
+        <article class="task-list__task" tabindex="0" role="article">
+          <header class="task-list__task-header">
+            <h2 class="task-list__task-title" [textContent]="getTruncatedTitle(task, 500)"></h2>
+            <div class="task-list__task-badges">
+              <!-- Priority Badge -->
+              <span 
+                class="task-list__badge task-list__badge--priority"
+                [style.background-color]="PRIORITY_COLORS[task.priority]"
+                [style.color]="'#ffffff'"
+                [style.padding]="'2px 8px'"
+                [style.border-radius]="'12px'"
+                [style.font-size]="'12px'"
+                [style.font-weight]="'500'"
+                aria-label="Priority: {{ task.priority }}"
+              >
+                {{ task.priority }}
+              </span>
+              
+              <!-- Project Badge -->
+              <span 
+                class="task-list__badge task-list__badge--project task-list__badge--project-{{ task.project.toLowerCase() }}"
+                [class]="getProjectBadgeClasses(task.project)"
+                aria-label="Project: {{ task.project }}"
+              >
+                {{ task.project }}
+              </span>
+              
+              <!-- Status Badge -->
+              <span 
+                class="task-list__badge task-list__badge--status"
+                aria-label="Status: {{ getStatusDisplay(task.status) }}"
+              >
+                {{ getStatusDisplay(task.status) }}
+              </span>
+            </div>
+          </header>
+          
+          @if (task.description) {
+            <p class="task-list__task-description" [innerHTML]="getSafeHtml(getSanitizedDescription(task))"></p>
+          }
+          
+          <footer class="task-list__task-footer">
+            <div class="task-list__task-date">
+              <span aria-hidden="true">📅</span>
+              <time [attr.datetime]="formatDateIso(task.createdAt)">
+                Created {{ formatDate(task.createdAt) }}
+              </time>
+              @if (getSafeDate(task.updatedAt).getTime() !== getSafeDate(task.createdAt).getTime()) {
+                <span class="task-list__task-updated">
+                  • Updated {{ formatDate(task.updatedAt) }}
+                </span>
+              }
+            </div>
+            
+            <div class="task-list__task-actions">
+              <button 
+                class="task-list__action-btn task-list__action-btn--edit"
+                (click)="onTaskAction(task.id, 'edit')"
+                [attr.aria-label]="getSafeAriaLabel(task, 'Edit task')"
+              >
+                ✏️ Edit
+              </button>
+              <button 
+                class="task-list__action-btn task-list__action-btn--delete"
+                (click)="onTaskAction(task.id, 'delete')"
+                [attr.aria-label]="getSafeAriaLabel(task, 'Delete task')"
+              >
+                🗑️ Delete
+              </button>
+            </div>
+          </footer>
+        </article>
+      }
+    </div>
+  }
+
+  <!-- Create Task Button (when tasks exist) -->
+  @if (!isEmpty()) {
+    <div class="task-list__create-container">
+      <button 
+        class="task-list__create-btn"
+        (click)="onCreateTask()"
+        aria-label="Create new task"
+      >
+        + Create Task
+      </button>
+    </div>
+  }
 }
