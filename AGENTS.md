@@ -1,7 +1,6 @@
 # TaskGo - Agent Development Guidelines
 
 ## Asana Integration
-
 project: TaskGo Kanban board
 
 ## Commands
@@ -85,3 +84,4 @@ project: TaskGo Kanban board
 - Design services around a single responsibility
 - Use the `providedIn: 'root'` option for singleton services
 - Use the `inject()` function instead of constructor injection
+

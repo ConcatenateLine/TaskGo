@@ -330,13 +330,13 @@
   </div>
 </main>
 
-<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
-<!-- * * * * * * * * * * * The content above * * * * * * * * * * * * -->
-<!-- * * * * * * * * * * is only a placeholder * * * * * * * * * * * -->
-<!-- * * * * * * * * * * and can be replaced.  * * * * * * * * * * * -->
-<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
-<!-- * * * * * * * * * * End of Placeholder  * * * * * * * * * * * * -->
-<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
+<header class="app-header">
+  <div class="app-header__content">
+    <h1 class="app-header__title">{{ title() }}</h1>
+    <p class="app-header__subtitle">Personal Task Manager</p>
+  </div>
+</header>
 
-
-<router-outlet />
+<main class="app-main">
+  <app-task-list />
+</main>
