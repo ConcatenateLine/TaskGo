@@ -1,0 +1,145 @@
+<div class="task-creation-form__container">
+  <div class="task-creation-form__header">
+    <h2 class="task-creation-form__title">Create New Task</h2>
+    <p class="task-creation-form__subtitle">Add a new task to your workspace</p>
+  </div>
+
+  <form [formGroup]="taskForm" (ngSubmit)="onSubmit()" class="task-creation-form__form">
+    <!-- Title Field -->
+    <div class="task-creation-form__field">
+      <label for="title" class="task-creation-form__label">
+        Task Title <span class="task-creation-form__required">*</span>
+      </label>
+      <input
+        id="title"
+        type="text"
+        formControlName="title"
+        class="task-creation-form__input"
+        placeholder="Enter task title (3-100 characters)"
+        aria-required="true"
+        aria-describedby="title-error title-help"
+        [class.task-creation-form__input--invalid]="taskForm.get('title')?.invalid && taskForm.get('title')?.touched"
+      />
+      <div id="title-help" class="task-creation-form__help">
+        Title must be between 3 and 100 characters
+      </div>
+      @if (taskForm.get('title')?.invalid && taskForm.get('title')?.touched) {
+        <div
+          id="title-error"
+          class="task-creation-form__error"
+        >
+          {{ getTitleErrorMessage() }}
+        </div>
+      }
+    </div>
+
+    <!-- Description Field -->
+    <div class="task-creation-form__field">
+      <label for="description" class="task-creation-form__label">
+        Description <span class="task-creation-form__optional">(optional)</span>
+      </label>
+      <textarea
+        id="description"
+        formControlName="description"
+        class="task-creation-form__textarea"
+        placeholder="Enter task description (max 500 characters)"
+        rows="4"
+        aria-describedby="description-error description-help"
+        [class.task-creation-form__textarea--invalid]="taskForm.get('description')?.invalid && taskForm.get('description')?.touched"
+      ></textarea>
+      <div id="description-help" class="task-creation-form__help">
+        Optional description to provide more details about the task
+      </div>
+      @if (taskForm.get('description')?.invalid && taskForm.get('description')?.touched) {
+        <div
+          id="description-error"
+          class="task-creation-form__error"
+        >
+          {{ getDescriptionErrorMessage() }}
+        </div>
+      }
+    </div>
+
+    <!-- Priority Field -->
+    <div class="task-creation-form__field">
+      <label for="priority" class="task-creation-form__label">
+        Priority <span class="task-creation-form__required">*</span>
+      </label>
+      <select
+        id="priority"
+        formControlName="priority"
+        class="task-creation-form__select"
+        aria-required="true"
+        aria-describedby="priority-error"
+        [class.task-creation-form__select--invalid]="taskForm.get('priority')?.invalid && taskForm.get('priority')?.touched"
+      >
+        @for (priority of priorities; track priority) {
+          <option [value]="priority" class="task-creation-form__option">
+            {{ priority | titlecase }}
+          </option>
+        }
+      </select>
+      @if (taskForm.get('priority')?.invalid && taskForm.get('priority')?.touched) {
+        <div
+          id="priority-error"
+          class="task-creation-form__error"
+        >
+          Priority is required
+        </div>
+      }
+    </div>
+
+    <!-- Error Message -->
+    @if (error()) {
+      <div
+        class="task-creation-form__error-message"
+        role="alert"
+        aria-live="polite"
+      >
+        <span class="task-creation-form__error-icon">⚠️</span>
+        {{ error() }}
+      </div>
+    }
+
+    <!-- Form Actions -->
+    <div class="task-creation-form__actions">
+      <button
+        type="button"
+        (click)="onCancel()"
+        class="task-creation-form__button task-creation-form__button--secondary"
+        [disabled]="isSubmitting()"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        (click)="resetForm()"
+        class="task-creation-form__button task-creation-form__button--secondary"
+        [disabled]="isSubmitting()"
+      >
+        Clear Form
+      </button>
+      <button
+        type="submit"
+        class="task-creation-form__button task-creation-form__button--primary"
+        [disabled]="isCreateButtonDisabled()"
+        [class.task-creation-form__button--loading]="isSubmitting()"
+      >
+        @if (isSubmitting()) {
+          <span class="task-creation-form__spinner"></span>
+          Creating...
+        } @else {
+          Create Task
+        }
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Screen reader announcer -->
+<div
+  id="task-creation-announcer"
+  class="task-creation-form__announcer"
+  aria-live="polite"
+  aria-atomic="true"
+></div>

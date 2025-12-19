@@ -1,3 +1,11 @@
+<!-- Global Success Message -->
+@if (successMessage()) {
+  <div class="app__success-message" role="alert" aria-live="polite">
+    <span class="app__success-icon">✅</span>
+    {{ successMessage() }}
+  </div>
+}
+
 <header class="app-header">
   <div class="app-header__content">
     <h1 class="app-header__title">{{ title() }}</h1>
@@ -6,5 +14,9 @@
 </header>
 
 <main class="app-main">
-  <app-task-list />
+  @if (showTaskCreation()) {
+    <app-task-creation-form (taskCreated)="onTaskCreated($event)" (cancelled)="onTaskCreationCancelled()" />
+  } @else {
+    <app-task-list (createTaskRequested)="onCreateTaskRequested()" />
+  }
 </main>

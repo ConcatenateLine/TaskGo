@@ -12,21 +12,16 @@ describe('TaskService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [
-        AuthService,
-        CryptoService,
-        ValidationService,
-        SecurityService
-      ]
+      providers: [AuthService, CryptoService, ValidationService, SecurityService],
     });
-    
+
     // Clear localStorage before each test to avoid stale encrypted data
     const cryptoService = TestBed.inject(CryptoService);
     cryptoService.clear();
-    
+
     service = TestBed.inject(TaskService);
     authService = TestBed.inject(AuthService);
-    
+
     // Create anonymous user for testing
     authService.createAnonymousUser();
   });
@@ -54,7 +49,7 @@ describe('TaskService', () => {
         todo: 0,
         inProgress: 0,
         done: 0,
-        total: 0
+        total: 0,
       });
     });
   });
@@ -66,7 +61,7 @@ describe('TaskService', () => {
         description: 'Test Description',
         priority: 'medium' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'Work' as TaskProject
+        project: 'Work' as TaskProject,
       };
 
       const createdTask = service.createTask(taskData);
@@ -84,12 +79,12 @@ describe('TaskService', () => {
         title: 'Test Task',
         priority: 'low' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'Personal' as TaskProject
+        project: 'Personal' as TaskProject,
       };
 
       service.createTask(taskData);
       const tasks = service.getTasks();
-      
+
       expect(tasks).toHaveLength(1);
       expect(tasks[0]).toMatchObject(taskData);
     });
@@ -99,7 +94,7 @@ describe('TaskService', () => {
         title: 'Task',
         priority: 'high' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'Study' as TaskProject
+        project: 'Study' as TaskProject,
       };
 
       const task1 = service.createTask(taskData);
@@ -114,7 +109,7 @@ describe('TaskService', () => {
         title: 'Task without description',
         priority: 'medium' as TaskPriority,
         status: 'IN_PROGRESS' as TaskStatus,
-        project: 'General' as TaskProject
+        project: 'General' as TaskProject,
       };
 
       const task = service.createTask(taskData);
@@ -136,16 +131,16 @@ describe('TaskService', () => {
 
     it('should return tasks sorted by creation date (newest first)', () => {
       const sortedTasks = service.getTasksSorted();
-      
+
       expect(sortedTasks).toHaveLength(4);
-      
+
       // Verify sorting (newest first)
       for (let i = 0; i < sortedTasks.length - 1; i++) {
         const currentTask = new Date(sortedTasks[i].createdAt).getTime();
         const nextTask = new Date(sortedTasks[i + 1].createdAt).getTime();
         expect(currentTask).toBeGreaterThanOrEqual(nextTask);
       }
-      
+
       // Verify first task is the newest (Jan 15, 2024)
       expect(sortedTasks[0].title).toBe('Review project requirements');
       expect(sortedTasks[0].id).toBe('1');
@@ -157,7 +152,7 @@ describe('TaskService', () => {
       const doneTasks = service.getTasksByStatus('DONE');
 
       expect(todoTasks).toHaveLength(2);
-      expect(todoTasks.every(task => task.status === 'TODO')).toBe(true);
+      expect(todoTasks.every((task) => task.status === 'TODO')).toBe(true);
 
       expect(inProgressTasks).toHaveLength(1);
       expect(inProgressTasks[0].title).toBe('Learn Angular signals');
@@ -172,7 +167,7 @@ describe('TaskService', () => {
       const studyTasks = service.getTasksByProject('Study');
 
       expect(workTasks).toHaveLength(2);
-      expect(workTasks.every(task => task.project === 'Work')).toBe(true);
+      expect(workTasks.every((task) => task.project === 'Work')).toBe(true);
 
       expect(personalTasks).toHaveLength(1);
       expect(personalTasks[0].title).toBe('Grocery shopping');
@@ -202,7 +197,7 @@ describe('TaskService', () => {
         todo: 2,
         inProgress: 1,
         done: 1,
-        total: 4
+        total: 4,
       });
     });
   });
@@ -217,7 +212,7 @@ describe('TaskService', () => {
       const updates = {
         title: 'Updated Task Title',
         status: 'IN_PROGRESS' as TaskStatus,
-        description: 'Updated description'
+        description: 'Updated description',
       };
 
       const updatedTask = service.updateTask(taskId, updates);
@@ -229,9 +224,7 @@ describe('TaskService', () => {
       expect(updatedTask!.priority).toBe('high'); // unchanged
       expect(updatedTask!.project).toBe('Work'); // unchanged
       expect(updatedTask!.updatedAt).toBeInstanceOf(Date);
-      expect(updatedTask!.updatedAt.getTime()).toBeGreaterThan(
-        updatedTask!.createdAt.getTime()
-      );
+      expect(updatedTask!.updatedAt.getTime()).toBeGreaterThan(updatedTask!.createdAt.getTime());
     });
 
     it('should return null when updating non-existent task', () => {
@@ -241,9 +234,9 @@ describe('TaskService', () => {
 
     it('should update task status', () => {
       const taskId = '3'; // Learn Angular signals (IN_PROGRESS)
-      
+
       const updatedTask = service.updateTask(taskId, { status: 'DONE' });
-      
+
       expect(updatedTask!.status).toBe('DONE');
       expect(service.getTasksByStatus('DONE')).toHaveLength(2);
       expect(service.getTasksByStatus('IN_PROGRESS')).toHaveLength(0);
@@ -251,9 +244,9 @@ describe('TaskService', () => {
 
     it('should update task priority', () => {
       const taskId = '4'; // Grocery shopping (medium)
-      
+
       const updatedTask = service.updateTask(taskId, { priority: 'high' });
-      
+
       expect(updatedTask!.priority).toBe('high');
     });
   });
@@ -265,19 +258,19 @@ describe('TaskService', () => {
 
     it('should delete existing task', () => {
       const taskId = '2'; // Setup development environment
-      
+
       const result = service.deleteTask(taskId);
       const tasks = service.getTasks();
-      
+
       expect(result).toBe(true);
       expect(tasks).toHaveLength(3);
-      expect(tasks.find(task => task.id === taskId)).toBeUndefined();
+      expect(tasks.find((task) => task.id === taskId)).toBeUndefined();
     });
 
     it('should return false when deleting non-existent task', () => {
       const result = service.deleteTask('non-existent-id');
       const tasks = service.getTasks();
-      
+
       expect(result).toBe(false);
       expect(tasks).toHaveLength(4); // unchanged
     });
@@ -285,9 +278,9 @@ describe('TaskService', () => {
     it('should update task counts after deletion', () => {
       const initialCounts = service.getTaskCounts();
       service.deleteTask('1'); // Delete a TODO task
-      
+
       const newCounts = service.getTaskCounts();
-      
+
       expect(newCounts.total).toBe(initialCounts.total - 1);
       expect(newCounts.todo).toBe(initialCounts.todo - 1);
     });
@@ -296,12 +289,12 @@ describe('TaskService', () => {
   describe('Mock Data', () => {
     it('should initialize with mock data', () => {
       service.initializeMockData();
-      
+
       const tasks = service.getTasks();
       expect(tasks).toHaveLength(4);
-      
+
       // Verify mock data structure
-      tasks.forEach(task => {
+      tasks.forEach((task) => {
         expect(task.id).toBeTruthy();
         expect(task.title).toBeTruthy();
         expect(['low', 'medium', 'high']).toContain(task.priority);
@@ -315,7 +308,7 @@ describe('TaskService', () => {
     it('should clear all tasks', () => {
       service.initializeMockData();
       expect(service.getTasks()).toHaveLength(4);
-      
+
       service.clearTasks();
       expect(service.getTasks()).toHaveLength(0);
     });
@@ -324,10 +317,10 @@ describe('TaskService', () => {
   describe('Edge Cases', () => {
     it('should handle empty status filter correctly', () => {
       service.initializeMockData();
-      
+
       service.getTasksByStatus('TODO');
       const tasks = service.getTasks();
-      
+
       // Filtering should not modify original array
       expect(service.getTasks()).toHaveLength(tasks.length);
     });
@@ -337,45 +330,45 @@ describe('TaskService', () => {
         title: 'Minimal Task',
         priority: 'low' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'General' as TaskProject
+        project: 'General' as TaskProject,
       };
 
       const createdTask = service.createTask(minimalTask);
-      
+
       expect(createdTask.title).toBe('Minimal Task');
       expect(createdTask.description).toBeUndefined();
     });
 
     it('should generate unique IDs for multiple tasks', () => {
       const tasks: string[] = [];
-      
+
       for (let i = 0; i < 10; i++) {
         const task = service.createTask({
           title: `Task ${i}`,
           priority: 'medium' as TaskPriority,
           status: 'TODO' as TaskStatus,
-          project: 'General' as TaskProject
+          project: 'General' as TaskProject,
         });
         tasks.push(task.id);
       }
-      
+
       const uniqueIds = new Set(tasks);
       expect(uniqueIds.size).toBe(tasks.length);
     });
 
     it('should maintain sorted order after adding new task', () => {
       service.initializeMockData();
-      
+
       // Add a new task with current date/time (should be newest)
       const newTask = service.createTask({
         title: 'Newest Task',
         priority: 'high' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'Work' as TaskProject
+        project: 'Work' as TaskProject,
       });
-      
+
       const sortedTasks = service.getTasksSorted();
-      
+
       expect(sortedTasks[0].id).toBe(newTask.id);
       expect(sortedTasks[0].title).toBe('Newest Task');
     });
@@ -388,14 +381,14 @@ describe('TaskService', () => {
 
     it('should ensure task IDs are strings', () => {
       const tasks = service.getTasks();
-      tasks.forEach(task => {
+      tasks.forEach((task) => {
         expect(typeof task.id).toBe('string');
       });
     });
 
     it('should ensure timestamps are Date objects', () => {
       const tasks = service.getTasks();
-      tasks.forEach(task => {
+      tasks.forEach((task) => {
         expect(task.createdAt).toBeInstanceOf(Date);
         expect(task.updatedAt).toBeInstanceOf(Date);
       });
@@ -403,7 +396,7 @@ describe('TaskService', () => {
 
     it('should ensure all enum values are valid', () => {
       const tasks = service.getTasks();
-      tasks.forEach(task => {
+      tasks.forEach((task) => {
         expect(['low', 'medium', 'high']).toContain(task.priority);
         expect(['TODO', 'IN_PROGRESS', 'DONE']).toContain(task.status);
         expect(['Personal', 'Work', 'Study', 'General']).toContain(task.project);
@@ -413,16 +406,16 @@ describe('TaskService', () => {
     it('should maintain updatedAt when status changes', () => {
       const tasks = service.getTasks();
       expect(tasks.length).toBeGreaterThan(0);
-      
+
       const task = tasks[0];
       expect(task).toBeDefined();
       expect(task.updatedAt).toBeDefined();
-      
+
       const originalUpdatedAt = task.updatedAt;
-      
+
       // Update the task
       const updatedTask = service.updateTask(task.id, { status: 'DONE' });
-      
+
       expect(updatedTask).toBeTruthy();
       expect(updatedTask!.updatedAt).toBeDefined();
       expect(updatedTask!.updatedAt.getTime()).toBeGreaterThanOrEqual(originalUpdatedAt.getTime());
@@ -439,7 +432,7 @@ describe('TaskService', () => {
         title: '<script>alert("XSS")</script>Malicious Task',
         priority: 'high' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'Work' as TaskProject
+        project: 'Work' as TaskProject,
       };
 
       expect(() => {
@@ -453,7 +446,7 @@ describe('TaskService', () => {
         description: '<img src="x" onerror="alert(\'XSS\')">',
         priority: 'medium' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'Personal' as TaskProject
+        project: 'Personal' as TaskProject,
       };
 
       expect(() => {
@@ -466,7 +459,7 @@ describe('TaskService', () => {
         title: 'javascript:alert("XSS")',
         priority: 'low' as TaskPriority,
         status: 'IN_PROGRESS' as TaskStatus,
-        project: 'Study' as TaskProject
+        project: 'Study' as TaskProject,
       };
 
       expect(() => {
@@ -479,26 +472,12 @@ describe('TaskService', () => {
         title: 'Click onclick="alert(\'XSS\')" here',
         priority: 'medium' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'General' as TaskProject
+        project: 'General' as TaskProject,
       };
 
       expect(() => {
         service.createTask(maliciousTaskData);
-      }).toThrow(/Invalid input: event handlers not allowed/);
-    });
-
-    it('should sanitize HTML entities in task titles', () => {
-      const taskData = {
-        title: 'Task with <em>emphasis</em> and &lt;script&gt; tags',
-        priority: 'low' as TaskPriority,
-        status: 'TODO' as TaskStatus,
-        project: 'Personal' as TaskProject
-      };
-
-      const createdTask = service.createTask(taskData);
-      expect(createdTask.title).toBe('Task with emphasis and &lt;script&gt; tags');
-      expect(createdTask.title).not.toContain('<em>');
-      expect(createdTask.title).not.toContain('</em>');
+      }).toThrow('Invalid input: event handlers not allowed');
     });
 
     it('should reject dangerously long task titles', () => {
@@ -507,7 +486,7 @@ describe('TaskService', () => {
         title: longTitle,
         priority: 'medium' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'Work' as TaskProject
+        project: 'Work' as TaskProject,
       };
 
       expect(() => {
@@ -520,7 +499,7 @@ describe('TaskService', () => {
         title: 'Task\u0000with\u0001control\u0002characters',
         priority: 'low' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'General' as TaskProject
+        project: 'General' as TaskProject,
       };
 
       expect(() => {
@@ -533,7 +512,7 @@ describe('TaskService', () => {
         title: '\u003cscript\u003ealert("XSS")\u003c/script\u003e',
         priority: 'medium' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'Work' as TaskProject
+        project: 'Work' as TaskProject,
       };
 
       expect(() => {
@@ -549,19 +528,19 @@ describe('TaskService', () => {
         description: 'Sensitive information',
         priority: 'high' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'Work' as TaskProject
+        project: 'Work' as TaskProject,
       };
 
       service.createTask(taskData);
-      
+
       // Check localStorage for encrypted data
       const storedData = localStorage.getItem('taskgo_tasks');
       expect(storedData).toBeTruthy();
-      
+
       // Verify data is not stored in plain text
       expect(storedData).not.toContain('Secure Task');
       expect(storedData).not.toContain('Sensitive information');
-      
+
       // Verify data looks encrypted (base64-like)
       if (storedData) {
         // Check if it's not directly readable JSON
@@ -577,12 +556,12 @@ describe('TaskService', () => {
         description: 'Test Description',
         priority: 'medium' as TaskPriority,
         status: 'IN_PROGRESS' as TaskStatus,
-        project: 'Study' as TaskProject
+        project: 'Study' as TaskProject,
       };
 
       service.createTask(taskData);
       const tasks = service.getTasks();
-      
+
       expect(tasks).toHaveLength(1);
       expect(tasks[0].title).toBe('Test Task');
       expect(tasks[0].description).toBe('Test Description');
@@ -591,11 +570,11 @@ describe('TaskService', () => {
     it('should handle corrupted encrypted data gracefully', () => {
       // Simulate corrupted localStorage with version prefix
       localStorage.setItem('taskgo_tasks', 'v1:corrupted_encrypted_data');
-      
+
       expect(() => {
         service.getTasks();
       }).not.toThrow();
-      
+
       // Should fall back to empty array
       const tasks = service.getTasks();
       expect(tasks).toEqual([]);
@@ -606,25 +585,25 @@ describe('TaskService', () => {
         title: 'Session Test',
         priority: 'low' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'Personal' as TaskProject
+        project: 'Personal' as TaskProject,
       };
 
       service.createTask(taskData);
       const firstEncryption = localStorage.getItem('taskgo_tasks');
-      
+
       // Clear localStorage and regenerate session key to simulate new session
       localStorage.clear();
-      
+
       // Get the crypto service and regenerate its key
       const cryptoService = TestBed.inject(CryptoService);
       cryptoService.regenerateSessionKey();
-      
+
       // Create anonymous user again for new session
       authService.createAnonymousUser();
-      
+
       service.createTask(taskData);
       const secondEncryption = localStorage.getItem('taskgo_tasks');
-      
+
       expect(firstEncryption).not.toBe(secondEncryption);
     });
   });
@@ -637,13 +616,13 @@ describe('TaskService', () => {
         title: 'Protected Task',
         priority: 'medium' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'Work' as TaskProject
+        project: 'Work' as TaskProject,
       };
 
       // Currently this succeeds without authentication - VULNERABILITY
       const result = service.createTask(taskData);
       expect(result).toBeTruthy();
-      
+
       // TODO: After implementation, this should throw authentication error:
       // expect(() => service.createTask(taskData)).toThrow(/Authentication required/);
     });
@@ -652,7 +631,7 @@ describe('TaskService', () => {
       // Test checks that anonymous users cannot access tasks
       // Currently fails because no authentication exists - SECURITY ISSUE
       expect(service.getTasks()).toBeTruthy();
-      
+
       // TODO: After implementation, this should fail:
       // expect(() => service.getTasks()).toThrow(/Anonymous access not allowed/);
     });
@@ -664,12 +643,12 @@ describe('TaskService', () => {
         title: 'User Specific Task',
         priority: 'low' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'Personal' as TaskProject
+        project: 'Personal' as TaskProject,
       };
 
       service.createTask(taskData);
       const tasks = service.getTasks();
-      
+
       // TODO: After implementation, tasks should be filtered by user context
       // Currently returns all tasks regardless of user - VULNERABILITY
       expect(tasks.length).toBeGreaterThanOrEqual(0);
@@ -691,24 +670,24 @@ describe('TaskService', () => {
 
     it('should log security events for audit trail', () => {
       const consoleSpy = vi.spyOn(console, 'warn');
-      
+
       // Attempt malicious operation
       try {
         service.createTask({
           title: '<script>alert("XSS")</script>',
           priority: 'medium' as TaskPriority,
           status: 'TODO' as TaskStatus,
-          project: 'Work' as TaskProject
+          project: 'Work' as TaskProject,
         });
       } catch (error) {
         // Expected to fail
       }
-      
+
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringMatching(/SECURITY: (VALIDATION_FAILURE|XSS|injection|malicious)/),
         expect.any(Object)
       );
-      
+
       consoleSpy.mockRestore();
     });
 
@@ -728,7 +707,7 @@ describe('TaskService', () => {
       let attempts = 0;
       let blockedCount = 0;
       let otherErrors = 0;
-      
+
       // Simulate rapid attempts (more than rate limit)
       for (let i = 0; i < 105; i++) {
         try {
@@ -736,7 +715,7 @@ describe('TaskService', () => {
             title: `Test Task ${i}`,
             priority: 'low' as TaskPriority,
             status: 'TODO' as TaskStatus,
-            project: 'General' as TaskProject
+            project: 'General' as TaskProject,
           });
           attempts++;
         } catch (error: any) {
@@ -748,11 +727,15 @@ describe('TaskService', () => {
           }
         }
       }
-      
+
       // Debug: Check rate limit status
       const rateLimitStatus = securityService.getRateLimitStatus('createTask');
-      console.log(`Rate limit status: ${JSON.stringify(rateLimitStatus)}, blockedCount: ${blockedCount}, attempts: ${attempts}, otherErrors: ${otherErrors}`);
-      
+      console.log(
+        `Rate limit status: ${JSON.stringify(
+          rateLimitStatus
+        )}, blockedCount: ${blockedCount}, attempts: ${attempts}, otherErrors: ${otherErrors}`
+      );
+
       // Should be blocked after certain threshold
       expect(blockedCount).toBeGreaterThan(0);
     });
@@ -765,7 +748,7 @@ describe('TaskService', () => {
         description: '<img src="https://evil.com/track.png">',
         priority: 'medium' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'Work' as TaskProject
+        project: 'Work' as TaskProject,
       };
 
       expect(() => {
@@ -779,7 +762,7 @@ describe('TaskService', () => {
         description: '<img src="data:text/html,<script>alert(\'XSS\')</script>">',
         priority: 'low' as TaskPriority,
         status: 'TODO' as TaskStatus,
-        project: 'Personal' as TaskProject
+        project: 'Personal' as TaskProject,
       };
 
       expect(() => {

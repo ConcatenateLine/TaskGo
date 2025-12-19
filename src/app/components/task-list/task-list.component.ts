@@ -1,4 +1,4 @@
-import { Component, input, computed, ChangeDetectionStrategy, signal, inject, SecurityContext } from '@angular/core';
+import { Component, input, computed, ChangeDetectionStrategy, signal, inject, SecurityContext, output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Task, PRIORITY_COLORS, PROJECT_COLORS } from '../../shared/models/task.model';
@@ -26,6 +26,7 @@ export class TaskListComponent {
   private refreshTrigger = signal(0);
   private errorState = signal<string | null>(null);
   protected readonly PRIORITY_COLORS = PRIORITY_COLORS;
+  createTaskRequested = output<void>();
 
   statusFilter = input<'all' | 'TODO' | 'IN_PROGRESS' | 'DONE'>('all');
   projectFilter = input<'all' | 'Personal' | 'Work' | 'Study' | 'General'>('all');
@@ -228,8 +229,7 @@ export class TaskListComponent {
   }
 
   onCreateTask(): void {
-    // This will be implemented in US-002
-    console.log('Create task clicked');
+    this.createTaskRequested.emit();
   }
 
   onTaskAction(taskId: string, action: 'edit' | 'delete' | 'status-change'): void {

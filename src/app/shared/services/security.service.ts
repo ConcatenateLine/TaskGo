@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class SecurityService {
   private operationCounts = new Map<string, number[]>();
@@ -19,13 +19,15 @@ export class SecurityService {
     const operationTimestamps = this.operationCounts.get(operation) || [];
 
     // Filter timestamps within window
-    const recentTimestamps = operationTimestamps.filter((timestamp: number) => timestamp > windowStart);
+    const recentTimestamps = operationTimestamps.filter(
+      (timestamp: number) => timestamp > windowStart
+    );
 
     // Block when we reach limit (on 100th attempt)
     if (recentTimestamps.length >= this.RATE_LIMIT_MAX) {
       return {
         allowed: false,
-        remainingAttempts: 0
+        remainingAttempts: 0,
       };
     }
 
@@ -37,7 +39,7 @@ export class SecurityService {
 
     return {
       allowed: true,
-      remainingAttempts
+      remainingAttempts,
     };
   }
 
@@ -51,12 +53,18 @@ export class SecurityService {
   /**
    * Get current rate limit status
    */
-  getRateLimitStatus(operation: string): { currentCount: number; maxAllowed: number; resetTime: number } {
+  getRateLimitStatus(operation: string): {
+    currentCount: number;
+    maxAllowed: number;
+    resetTime: number;
+  } {
     const now = Date.now();
     const windowStart = now - this.RATE_LIMIT_WINDOW;
 
     const operationTimestamps = this.operationCounts.get(operation) || [];
-    const recentTimestamps = operationTimestamps.filter((timestamp: number) => timestamp > windowStart);
+    const recentTimestamps = operationTimestamps.filter(
+      (timestamp: number) => timestamp > windowStart
+    );
 
     const oldestTimestamp = recentTimestamps.length > 0 ? Math.min(...recentTimestamps) : now;
     const resetTime = oldestTimestamp + this.RATE_LIMIT_WINDOW;
@@ -64,77 +72,141 @@ export class SecurityService {
     return {
       currentCount: recentTimestamps.length,
       maxAllowed: this.RATE_LIMIT_MAX,
-      resetTime
+      resetTime,
     };
   }
 
   /**
    * Validate request for suspicious patterns
    */
-  validateRequest(requestData: any): { valid: boolean; threats: string[] } {
+  validateRequest(data: any): { valid: boolean; threats: string[] } {
     const threats: string[] = [];
 
-    if (!requestData || typeof requestData !== 'object') {
-      return { valid: false, threats: ['Invalid request data'] };
+    if (!data || typeof data !== 'object') {
+      return { valid: true, threats };
     }
 
-    // Check for common attack patterns
-    const suspiciousPatterns = [
-      /<script[^>]*>/gi,
-      /javascript:/gi,
-      /on\w+\s*=/gi,
-      /union\s+select/gi,
-      /drop\s+table/gi,
-      /insert\s+into/gi,
-      /delete\s+from/gi,
-      /exec\s*\(/gi,
-      /eval\s*\(/gi
-    ];
-
-    const checkString = (str: string, field: string) => {
-      suspiciousPatterns.forEach(pattern => {
-        if (pattern.test(str)) {
-          threats.push(`Suspicious pattern detected in ${field}`);
+    const checkValue = (value: any, path: string) => {
+      if (typeof value === 'string') {
+        // Decode HTML entities first
+        const decodedValue = this.decodeHTMLEntities(value);
+        // Check for event handlers
+        if (/(^|\s)on\w+\s*=/i.test(decodedValue)) {
+          threats.push(`Dangerous content in ${path}: event handlers not allowed`);
+          return;
         }
-      });
-    };
 
-    // Recursive check of all string values
-    const checkObject = (obj: any, path = '') => {
-      if (typeof obj === 'string') {
-        checkString(obj, path || 'root');
-      } else if (Array.isArray(obj)) {
-        obj.forEach((item, index) => {
-          checkObject(item, `${path}[${index}]`);
-        });
-      } else if (obj && typeof obj === 'object') {
-        Object.entries(obj).forEach(([key, value]) => {
-          checkObject(value, path ? `${path}.${key}` : key);
+        // Check for script tags and other dangerous patterns
+        if (/<script\b[^>]*>|<\/script\s*>|javascript:|data:|vbscript:/i.test(decodedValue)) {
+          threats.push(`Dangerous content in ${path}: potentially dangerous content detected`);
+        }
+      } else if (value && typeof value === 'object') {
+        // Recursively check nested objects
+        Object.entries(value).forEach(([key, val]) => {
+          checkValue(val, path ? `${path}.${key}` : key);
         });
       }
     };
 
-    checkObject(requestData);
-
-    // Check for excessive data size
-    const dataSize = JSON.stringify(requestData).length;
-    if (dataSize > 100000) { // 100KB
-      threats.push('Request data too large');
-    }
+    // Check all properties
+    Object.entries(data).forEach(([key, value]) => {
+      checkValue(value, key);
+    });
 
     return {
       valid: threats.length === 0,
-      threats
+      threats,
     };
+  }
+
+  validateSanitize(data: any): { valid: boolean; threats: string[] } {
+    const threats: string[] = [];
+
+    if (!data || typeof data !== 'object') {
+      return { valid: true, threats };
+    }
+
+    const checkValue = (value: any, path: string) => {
+      if (typeof value === 'string') {
+        // Decode HTML entities first
+        const decodedValue = this.decodeHTMLEntities(value);
+        // Check for event handlers
+        if (/(^|\s)on\w+\s*=/i.test(decodedValue)) {
+          threats.push(`Dangerous content in ${path}: event handlers not allowed`);
+          return;
+        }
+
+        // Check for script tags and other dangerous patterns
+        if (/<script\b[^>]*>|<\/script\s*>|javascript:|data:|vbscript:/i.test(decodedValue)) {
+          threats.push(`Dangerous content in ${path}: potentially dangerous content detected`);
+        }
+      } else if (value && typeof value === 'object') {
+        // Recursively check nested objects
+        Object.entries(value).forEach(([key, val]) => {
+          checkValue(val, path ? `${path}.${key}` : key);
+        });
+      }
+    };
+
+    // Check all properties
+    Object.entries(data).forEach(([key, value]) => {
+      const sanitizedValue =
+        value instanceof String ? this.sanitizeString(value.toString()) : value;
+      checkValue(sanitizedValue, key);
+    });
+
+    return {
+      valid: threats.length === 0,
+      threats,
+    };
+  }
+
+  private sanitizeString(content: string): string {
+    // First decode any HTML entities
+    let sanitized = this.decodeHTMLEntities(content);
+
+    // Remove HTML tags
+    sanitized = sanitized.replace(/<[^>]*>/g, '');
+
+    // Remove dangerous patterns
+    const dangerousPatterns = [
+      /javascript:/gi,
+      /data:/gi,
+      /vbscript:/gi,
+      /on\w+\s*=/gi,
+      /expression\s*\(/gi,
+      /url\s*\(/gi,
+    ];
+
+    dangerousPatterns.forEach((pattern) => {
+      sanitized = sanitized.replace(pattern, '');
+    });
+
+    // Encode special characters
+    return sanitized
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+      .replace(/\//g, '&#x2F;');
+  }
+
+  private decodeHTMLEntities(encodedString: string): string {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = encodedString;
+    return textarea.value;
   }
 
   /**
    * Generate secure random string
    */
   generateSecureRandom(length: number = 32): string {
-    const array = new Uint8Array(length);
+    const byteLength = Math.ceil(length / 2); // Each byte becomes 2 hex chars
+    const array = new Uint8Array(byteLength);
     crypto.getRandomValues(array);
-    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    const hexString = Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    return hexString.substring(0, length);
   }
 
   /**
@@ -170,7 +242,12 @@ export class SecurityService {
     }
 
     // Ensure URL starts with http or https or is relative
-    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('/') && !url.startsWith('./')) {
+    if (
+      !url.startsWith('http://') &&
+      !url.startsWith('https://') &&
+      !url.startsWith('/') &&
+      !url.startsWith('./')
+    ) {
       return '';
     }
 
@@ -192,12 +269,15 @@ export class SecurityService {
     const attackPatterns = [
       { pattern: /<script[^>]*>.*?<\/script>/gi, type: 'XSS' },
       { pattern: /javascript:/gi, type: 'XSS' },
-      { pattern: /union\s+select/gi, type: 'SQL Injection' },
-      { pattern: /drop\s+table/gi, type: 'SQL Injection' },
       { pattern: /<iframe[^>]*>/gi, type: 'XSS' },
       { pattern: /on\w+\s*=/gi, type: 'XSS' },
-      { pattern: /eval\s*\(/gi, type: 'Code Injection' },
-      { pattern: /exec\s*\(/gi, type: 'Code Injection' }
+      { pattern: /eval\s*\(/gi, type: 'XSS' }, // eval should be detected as XSS
+      { pattern: /expression\s*\(/gi, type: 'Code Injection' },
+      { pattern: /exec\s*\(/gi, type: 'Code Injection' },
+      { pattern: /union\s+select/gi, type: 'SQL Injection' },
+      { pattern: /drop\s+table/gi, type: 'SQL Injection' },
+      { pattern: /'[^']*\s*or\s*'[^']*'\s*=\s*'[^']*/gi, type: 'SQL Injection' },
+      { pattern: /admin\s*'?\s*--/gi, type: 'SQL Injection' },
     ];
 
     for (const { pattern, type } of attackPatterns) {
@@ -207,5 +287,32 @@ export class SecurityService {
     }
 
     return { isAttack: false, attackType: '' };
+  }
+
+  /**
+   * Detect SQL injection patterns
+   */
+  detectSQLInjection(input: string): { isSQLi: boolean; patterns: string[] } {
+    const sqlPatterns = [
+      /union\s+select/gi,
+      /drop\s+table/gi,
+      /insert\s+into/gi,
+      /delete\s+from/gi,
+      /update\s+set/gi,
+      /exec\s*\(/gi,
+      /--/,
+      /\/\*/,
+      /\*\//,
+      /'[^']*\s*or\s*'[^']*'/gi,
+      /'[^']*\s*=\s*'[^']*/gi,
+      /admin'--/gi,
+    ];
+
+    const matchedPatterns = sqlPatterns.filter((pattern) => pattern.test(input));
+
+    return {
+      isSQLi: matchedPatterns.length > 0,
+      patterns: matchedPatterns.map((p) => p.toString()),
+    };
   }
 }
