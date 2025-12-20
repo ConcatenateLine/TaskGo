@@ -16,19 +16,14 @@ project: TaskGo Kanban board
 
 ## Code Style Guidelines
 
-### Angular Specific
-- Use standalone components (Angular 21+)
-- Prefer `@if/@for/@switch` control flow over structural directives
-- Use signals for reactive state management
-- SCSS for styles with single quotes in Prettier config
-- Component prefix: `app-`
-
 ### TypeScript
 - Strict TypeScript config enabled
 - Single quotes for strings
 - 2-space indentation (EditorConfig)
 - Import helpers enabled
 - No implicit returns or property access
+- Prefer type inference when the type is obvious
+- Avoid the `any` type; use `unknown` when type is uncertain
 
 ### Code Organization
 - Follow Angular folder structure (src/app/)
@@ -42,16 +37,14 @@ project: TaskGo Kanban board
 - Mock dependencies appropriately
 - Write tests alongside source files (*.spec.ts)
 
-## Angular specific best practices
+## Angular specific
 
-### TypeScript Best Practices
-- Use strict type checking
-- Prefer type inference when the type is obvious
-- Avoid the `any` type; use `unknown` when type is uncertain
 ### Angular Best Practices
-- Always use standalone components over NgModules
+- Always use standalone components over NgModules (Angular 21+)
+- Prefer `@if/@for/@switch` control flow over structural directives
 - Must NOT set `standalone: true` inside Angular decorators. It's the default in Angular v20+.
-- Use signals for state management
+- Component prefix: `app-`
+- Use signals for reactive state management
 - Implement lazy loading for feature routes
 - Do NOT use the `@HostBinding` and `@HostListener` decorators. Put host bindings inside the `host` object of the `@Component` or `@Directive` decorator instead
 - Use `NgOptimizedImage` for all static images.
@@ -84,4 +77,3 @@ project: TaskGo Kanban board
 - Design services around a single responsibility
 - Use the `providedIn: 'root'` option for singleton services
 - Use the `inject()` function instead of constructor injection
-
