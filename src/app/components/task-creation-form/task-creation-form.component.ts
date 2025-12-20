@@ -33,7 +33,7 @@ export class TaskCreationFormComponent {
   isSubmitting = signal(false);
   error = signal<string | null>(null);
   readonly priorities: TaskPriority[] = ['low', 'medium', 'high'];
-  
+
   taskCreated = output<Task>();
   cancelled = output<void>();
 
