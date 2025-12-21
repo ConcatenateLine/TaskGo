@@ -7,8 +7,8 @@
 } @else {
   <!-- Task List Header -->
   <div class="task-list__header">
-    <h1 class="task-list__title">Tasks</h1>
-    
+    <h2 class="task-list__title">Tasks</h2>
+
     <div class="task-list__counts">
       @if (taskCounts(); as counts) {
         <div class="task-list__count">
@@ -39,7 +39,7 @@
       <p class="task-list__empty-description">
         Start by creating your first task to get organized!
       </p>
-      <button 
+      <button
         class="task-list__create-btn"
         (click)="onCreateTask()"
         aria-label="Create new task"
@@ -56,7 +56,7 @@
             <h2 class="task-list__task-title" [textContent]="getTruncatedTitle(task, 500)"></h2>
             <div class="task-list__task-badges">
               <!-- Priority Badge -->
-              <span 
+              <span
                 class="task-list__badge task-list__badge--priority"
                 [style.background-color]="PRIORITY_COLORS[task.priority]"
                 [style.color]="'#ffffff'"
@@ -68,18 +68,18 @@
               >
                 {{ task.priority }}
               </span>
-              
+
               <!-- Project Badge -->
-              <span 
+              <span
                 class="task-list__badge task-list__badge--project task-list__badge--project-{{ task.project.toLowerCase() }}"
                 [class]="getProjectBadgeClasses(task.project)"
                 aria-label="Project: {{ task.project }}"
               >
                 {{ task.project }}
               </span>
-              
+
               <!-- Status Badge -->
-              <span 
+              <span
                 class="task-list__badge task-list__badge--status"
                 aria-label="Status: {{ getStatusDisplay(task.status) }}"
               >
@@ -87,11 +87,11 @@
               </span>
             </div>
           </header>
-          
+
           @if (task.description) {
             <p class="task-list__task-description" [innerHTML]="getSafeHtml(getSanitizedDescription(task))"></p>
           }
-          
+
           <footer class="task-list__task-footer">
             <div class="task-list__task-date">
               <span aria-hidden="true">📅</span>
@@ -104,16 +104,16 @@
                 </span>
               }
             </div>
-            
+
             <div class="task-list__task-actions">
-              <button 
+              <button
                 class="task-list__action-btn task-list__action-btn--edit"
                 (click)="onTaskAction(task.id, 'edit')"
                 [attr.aria-label]="getSafeAriaLabel(task, 'Edit task')"
               >
                 ✏️ Edit
               </button>
-              <button 
+              <button
                 class="task-list__action-btn task-list__action-btn--delete"
                 (click)="onTaskAction(task.id, 'delete')"
                 [attr.aria-label]="getSafeAriaLabel(task, 'Delete task')"
@@ -130,7 +130,7 @@
   <!-- Create Task Button (when tasks exist) -->
   @if (!isEmpty()) {
     <div class="task-list__create-container">
-      <button 
+      <button
         class="task-list__create-btn"
         (click)="onCreateTask()"
         aria-label="Create new task"
