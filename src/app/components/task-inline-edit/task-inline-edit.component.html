@@ -1,0 +1,187 @@
+<!-- Inline Edit Form -->
+<div class="task-inline-edit__form-container">
+  @if (errorMessage(); as error) {
+    <div class="task-inline-edit__error" role="alert" aria-live="assertive">
+      <span class="task-inline-edit__error-icon">⚠️</span>
+      <span>{{ error }}</span>
+    </div>
+  }
+
+  <form 
+    class="task-inline-edit__form" 
+    [formGroup]="editForm" 
+    (ngSubmit)="onSave()"
+    novalidate
+  >
+    <!-- Title Field -->
+    <div class="task-inline-edit__field">
+      <label 
+        for="task-title-{{ task()?.id }}" 
+        class="task-inline-edit__label"
+        aria-describedby="task-title-help-{{ task()?.id }}"
+      >
+        Task Title *
+      </label>
+      <input
+        id="task-title-{{ task()?.id }}"
+        class="task-inline-edit__input"
+        type="text"
+        name="title"
+        formControlName="title"
+        [attr.aria-invalid]="isFieldInvalid('title') ? 'true' : 'false'"
+        [attr.aria-describedby]="isFieldInvalid('title') ? 'task-title-error-' + (task()?.id || '') : 'task-title-help-' + (task()?.id || '')"
+        placeholder="Enter task title (3-100 characters)"
+        autocomplete="off"
+        maxlength="100"
+      />
+      
+      <!-- Field Help -->
+      <small id="task-title-help-{{ task()?.id }}" class="task-inline-edit__help">
+        Title must be between 3 and 100 characters
+      </small>
+      
+      <!-- Field Error -->
+      @if (isFieldInvalid('title')) {
+        <div 
+          id="task-title-error-{{ task()?.id }}" 
+          class="task-inline-edit__field-error"
+          role="alert"
+        >
+          {{ getErrorMessageForField('title') }}
+        </div>
+      }
+    </div>
+
+    <!-- Description Field -->
+    <div class="task-inline-edit__field">
+      <label 
+        for="task-description-{{ task()?.id }}" 
+        class="task-inline-edit__label"
+        aria-describedby="task-description-help-{{ task()?.id }}"
+      >
+        Description (optional)
+      </label>
+      <textarea
+        id="task-description-{{ task()?.id }}"
+        class="task-inline-edit__textarea"
+        name="description"
+        formControlName="description"
+        [attr.aria-invalid]="isFieldInvalid('description') ? 'true' : 'false'"
+        [attr.aria-describedby]="isFieldInvalid('description') ? 'task-description-error-' + (task()?.id || '') : 'task-description-help-' + (task()?.id || '')"
+        placeholder="Enter task description"
+        rows="3"
+        maxlength="500"
+      ></textarea>
+      
+      <!-- Field Help -->
+      <small id="task-description-help-{{ task()?.id }}" class="task-inline-edit__help">
+        Optional description with a maximum of 500 characters
+      </small>
+      
+      <!-- Field Error -->
+      @if (isFieldInvalid('description')) {
+        <div 
+          id="task-description-error-{{ task()?.id }}" 
+          class="task-inline-edit__field-error"
+          role="alert"
+        >
+          {{ getErrorMessageForField('description') }}
+        </div>
+      }
+    </div>
+
+    <!-- Priority and Project Fields -->
+    <div class="task-inline-edit__field-group">
+      <!-- Priority Field -->
+      <div class="task-inline-edit__field task-inline-edit__field--half">
+        <label 
+          for="task-priority-{{ task()?.id }}" 
+          class="task-inline-edit__label"
+        >
+          Priority
+        </label>
+        <select
+          id="task-priority-{{ task()?.id }}"
+          class="task-inline-edit__select"
+          name="priority"
+          formControlName="priority"
+          aria-label="Select task priority"
+        >
+          @for (priority of priorityOptions; track priority) {
+            <option [value]="priority">
+              {{ priority | titlecase }}
+            </option>
+          }
+        </select>
+      </div>
+
+      <!-- Project Field -->
+      <div class="task-inline-edit__field task-inline-edit__field--half">
+        <label 
+          for="task-project-{{ task()?.id }}" 
+          class="task-inline-edit__label"
+        >
+          Project
+        </label>
+        <select
+          id="task-project-{{ task()?.id }}"
+          class="task-inline-edit__select"
+          name="project"
+          formControlName="project"
+          aria-label="Select project"
+        >
+          @for (project of projectOptions; track project) {
+            <option [value]="project">
+              {{ project }}
+            </option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <!-- Form Actions -->
+    <div class="task-inline-edit__actions">
+      <button
+        type="submit"
+        class="task-inline-edit__btn task-inline-edit__btn--save"
+        [disabled]="!editForm.valid || isSubmitting()"
+        [attr.aria-busy]="isSubmitting()"
+        aria-label="Save task changes"
+      >
+        @if (isSubmitting()) {
+          <span class="task-inline-edit__spinner" aria-hidden="true"></span>
+          Saving...
+        } @else {
+          💾 Save
+        }
+      </button>
+
+      <button
+        type="button"
+        class="task-inline-edit__btn task-inline-edit__btn--cancel"
+        (click)="onCancel()"
+        [disabled]="isSubmitting()"
+        aria-label="Cancel editing"
+      >
+        ❌ Cancel
+      </button>
+    </div>
+  </form>
+
+  <!-- Screen Reader Live Region -->
+  <div 
+    class="task-inline-edit__live-region" 
+    aria-live="polite" 
+    aria-atomic="true"
+  >
+    @if (isSubmitting()) {
+      Saving task...
+    }
+    @if (errorMessage()) {
+      Error: {{ errorMessage() }}
+    }
+    @if (editForm.valid && !isSubmitting()) {
+      Form is valid. You can save the task.
+    }
+  </div>
+</div>
