@@ -86,7 +86,7 @@ export class TaskInlineEditComponent implements OnInit, OnChanges {
       const sanitizedTitle = this.validationService.sanitizeForDisplay(title);
       
       // Validate through service
-      const validation = this.validationService.validateTaskTitle(sanitizedTitle);
+      const validation = this.validationService.validateTaskTitle(sanitizedTitle, false);
       if (!validation.isValid) {
         resolve({ invalidTitle: validation.error });
         return;
@@ -132,7 +132,7 @@ export class TaskInlineEditComponent implements OnInit, OnChanges {
     });
   }
 
-  onSave(): void {
+  public onSave(): void {
     if (!this.editForm.valid || this.isSubmitting()) {
       return;
     }
