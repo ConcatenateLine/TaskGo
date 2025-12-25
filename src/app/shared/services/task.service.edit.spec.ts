@@ -16,8 +16,16 @@ describe('TaskService - Edit Functionality (US-003)', () => {
 
   beforeEach(() => {
     const validationServiceSpy = {
-      validateTaskTitle: vi.fn(),
-      validateTaskDescription: vi.fn(),
+      validateTaskTitle: vi.fn().mockReturnValue({ 
+        isValid: true, 
+        sanitized: 'Default Title',
+        error: undefined 
+      }),
+      validateTaskDescription: vi.fn().mockReturnValue({ 
+        isValid: true, 
+        sanitized: 'Default Description',
+        error: undefined 
+      }),
       sanitizeForDisplay: vi.fn().mockImplementation((input: string) => input),
       validateCSP: vi.fn().mockReturnValue({ isValid: true, violations: [] })
     };
@@ -31,7 +39,11 @@ describe('TaskService - Edit Functionality (US-003)', () => {
       logSecurityEvent: vi.fn(),
       isAuthenticated: vi.fn().mockReturnValue(true),
       getUserContext: vi.fn().mockReturnValue({ userId: 'test-user' }),
-      requireAuthentication: vi.fn(),
+      requireAuthentication: vi.fn().mockImplementation(function() {
+        if (!authService.isAuthenticated()) {
+          throw new Error('Authentication required to perform this operation');
+        }
+      }),
       createAnonymousUser: vi.fn()
     };
 
@@ -397,6 +409,7 @@ describe('TaskService - Edit Functionality (US-003)', () => {
       }));
 
       cryptoService.getItem.mockReturnValue(largeTaskList);
+      taskService.initializeMockData(); // Reinitialize with large dataset
 
       const startTime = performance.now();
       
@@ -441,7 +454,7 @@ describe('TaskService - Edit Functionality (US-003)', () => {
         // Expected
       }
 
-      const logCall = authService.logSecurityEvent.mock.calls[1][0];
+      const logCall = authService.logSecurityEvent.mock.calls[0][0];
       expect(logCall.type).toBe('XSS_ATTEMPT');
       expect(logCall.message).toContain('Update attack attempt detected');
       expect(logCall.timestamp).toBeInstanceOf(Date);

@@ -86,7 +86,7 @@ export class TaskInlineEditComponent implements OnInit, OnChanges {
       const sanitizedTitle = this.validationService.sanitizeForDisplay(title);
       
       // Validate through service
-      const validation = this.validationService.validateTaskTitle(sanitizedTitle, false);
+      const validation = this.validationService.validateTaskTitle(sanitizedTitle);
       if (!validation.isValid) {
         resolve({ invalidTitle: validation.error });
         return;

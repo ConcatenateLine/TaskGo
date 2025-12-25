@@ -251,14 +251,15 @@ export class TaskService {
     // Validate update data if title or description is provided
     if (updates.title) {
       const titleValidation = this.validationService.validateTaskTitle(updates.title);
-      if (!titleValidation.isValid) {
+      if (!titleValidation || !titleValidation.isValid) {
+        const errorMessage = titleValidation?.error || 'Invalid task title';
         this.authService.logSecurityEvent({
           type: 'VALIDATION_FAILURE',
-          message: `Task title validation failed: ${titleValidation.error}`,
+          message: `Task title validation failed: ${errorMessage}`,
           timestamp: new Date(),
           userId: this.authService.getUserContext()?.userId,
         });
-        throw new Error(titleValidation.error || 'Invalid task title');
+        throw new Error(errorMessage);
       }
       updates.title = titleValidation.sanitized!;
     }
@@ -267,16 +268,17 @@ export class TaskService {
       const descriptionValidation = this.validationService.validateTaskDescription(
         updates.description
       );
-      if (!descriptionValidation.isValid) {
+      if (!descriptionValidation || !descriptionValidation.isValid) {
+        const errorMessage = descriptionValidation?.error || 'Invalid task description';
         this.authService.logSecurityEvent({
           type: 'VALIDATION_FAILURE',
-          message: `Task description validation failed: ${descriptionValidation.error}`,
+          message: `Task description validation failed: ${errorMessage}`,
           timestamp: new Date(),
           userId: this.authService.getUserContext()?.userId,
         });
-        throw new Error(descriptionValidation.error || 'Invalid task description');
+        throw new Error(errorMessage);
       }
-      updates.description = descriptionValidation.sanitized;
+      updates.description = descriptionValidation.sanitized ?? updates.description;
     }
 
     // Check for attack patterns
