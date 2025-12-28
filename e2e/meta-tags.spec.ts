@@ -4,19 +4,18 @@ test.describe('Meta Tags and HTML Head', () => {
   test('should have proper charset meta tag', async ({ page }) => {
     await page.goto('/');
 
-    // Check for charset meta tag
+    // Check for charset meta tag (meta tags are not visible, just present)
     const charsetMeta = page.locator('meta[charset]');
-
-    await expect(charsetMeta).toBeTruthy();
+    await expect(charsetMeta).toHaveCount(1);
     await expect(charsetMeta).toHaveAttribute('charset', 'utf-8');
   });
 
   test('should have proper viewport meta tag', async ({ page }) => {
     await page.goto('/');
 
-    // Check for viewport meta tag
+    // Check for viewport meta tag (meta tags are not visible, just present)
     const viewportMeta = page.locator('meta[name="viewport"]');
-    await expect(viewportMeta).toBeTruthy();
+    await expect(viewportMeta).toHaveCount(1);
 
     const content = await viewportMeta.getAttribute('content');
     expect(content).toContain('width=device-width');
@@ -117,10 +116,11 @@ test.describe('Content Security', () => {
 });
 
 test.describe('Application Loading', () => {
-  test('should load the TaskGo application successfully', async ({ page }) => {
+  test('should load TaskGo application successfully', async ({ page }) => {
     await page.goto('/');
 
-    // Check that the app loads and shows the title
+    // Check that app loads and shows the title
+    await expect(page.locator('h1')).toBeVisible();
     await expect(page.locator('h1')).toContainText('TaskGo');
   });
 

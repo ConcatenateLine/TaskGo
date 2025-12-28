@@ -7,12 +7,18 @@ test.describe('TaskGo Application - Security Integration Tests', () => {
       console.log(`Browser console [${msg.type()}]: ${msg.text()}`);
     });
 
+    // Clear localStorage to avoid crypto service issues
     await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.clear();
+    });
+    await page.reload();
   });
 
   test.describe('End-to-End XSS Prevention (A03)', () => {
     test('should prevent XSS in task creation form', async ({ page }) => {
       // Wait for app to load
+      await expect(page.locator('h1')).toBeVisible();
       await expect(page.locator('h1')).toContainText('TaskGo');
 
       // Try to inject XSS via potential task input

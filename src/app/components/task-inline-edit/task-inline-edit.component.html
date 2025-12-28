@@ -33,6 +33,7 @@
         placeholder="Enter task title (3-100 characters)"
         autocomplete="off"
         maxlength="100"
+        (blur)="onFieldBlur('title')"
       />
       
       <!-- Field Help -->
@@ -41,7 +42,7 @@
       </small>
       
       <!-- Field Error -->
-      @if (isFieldInvalid('title')) {
+      @if (isFieldInvalid('title') || (title?.invalid && title?.errors)) {
         <div 
           id="task-title-error-{{ task()?.id }}" 
           class="task-inline-edit__field-error"
@@ -71,6 +72,7 @@
         placeholder="Enter task description"
         rows="3"
         maxlength="500"
+        (blur)="onFieldBlur('description')"
       ></textarea>
       
       <!-- Field Help -->
@@ -79,7 +81,7 @@
       </small>
       
       <!-- Field Error -->
-      @if (isFieldInvalid('description')) {
+      @if (isFieldInvalid('description') || (description?.invalid && description?.errors)) {
         <div 
           id="task-description-error-{{ task()?.id }}" 
           class="task-inline-edit__field-error"
