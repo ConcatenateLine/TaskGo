@@ -28,12 +28,12 @@
         type="text"
         name="title"
         formControlName="title"
+        (blur)="onFieldBlur('title')"
         [attr.aria-invalid]="isFieldInvalid('title') ? 'true' : 'false'"
         [attr.aria-describedby]="isFieldInvalid('title') ? 'task-title-error-' + (task()?.id || '') : 'task-title-help-' + (task()?.id || '')"
         placeholder="Enter task title (3-100 characters)"
         autocomplete="off"
         maxlength="100"
-        (blur)="onFieldBlur('title')"
       />
       
       <!-- Field Help -->
@@ -42,7 +42,7 @@
       </small>
       
       <!-- Field Error -->
-      @if (isFieldInvalid('title') || (title?.invalid && title?.errors)) {
+      @if (isFieldInvalid('title')) {
         <div 
           id="task-title-error-{{ task()?.id }}" 
           class="task-inline-edit__field-error"
@@ -67,12 +67,12 @@
         class="task-inline-edit__textarea"
         name="description"
         formControlName="description"
+        (blur)="onFieldBlur('description')"
         [attr.aria-invalid]="isFieldInvalid('description') ? 'true' : 'false'"
         [attr.aria-describedby]="isFieldInvalid('description') ? 'task-description-error-' + (task()?.id || '') : 'task-description-help-' + (task()?.id || '')"
         placeholder="Enter task description"
         rows="3"
         maxlength="500"
-        (blur)="onFieldBlur('description')"
       ></textarea>
       
       <!-- Field Help -->
@@ -81,7 +81,7 @@
       </small>
       
       <!-- Field Error -->
-      @if (isFieldInvalid('description') || (description?.invalid && description?.errors)) {
+      @if (isFieldInvalid('description')) {
         <div 
           id="task-description-error-{{ task()?.id }}" 
           class="task-inline-edit__field-error"

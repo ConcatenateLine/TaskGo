@@ -651,9 +651,9 @@ describe('TaskInlineEditComponent', () => {
       expect(validationService.sanitizeForDisplay).toHaveBeenCalledWith(maliciousTitle);
       expect(validationService.sanitizeForDisplay).toHaveBeenCalledWith(maliciousDescription);
 
-      // Verify validation services were called with SANITIZED values (not original malicious ones)
-      expect(validationService.validateTaskTitle).toHaveBeenCalledWith(sanitizedTitle, false);
-      expect(validationService.validateTaskDescription).toHaveBeenCalledWith(sanitizedDescription);
+      // Verify validation services were called with Original values for detect Malicious inputs
+      expect(validationService.validateTaskTitle).toHaveBeenCalledWith(maliciousTitle, false);
+      expect(validationService.validateTaskDescription).toHaveBeenCalledWith(maliciousDescription);
 
       // Verify security service was called with SANITIZED values
       expect(securityService.validateRequest).toHaveBeenCalledWith({ title: sanitizedTitle });
