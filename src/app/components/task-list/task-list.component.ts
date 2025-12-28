@@ -6,10 +6,11 @@ import { TaskService } from '../../shared/services/task.service';
 import { ValidationService } from '../../shared/services/validation.service';
 import { AuthService } from '../../shared/services/auth.service';
 import { SecurityService } from '../../shared/services/security.service';
+import { TaskInlineEditComponent } from '../task-inline-edit/task-inline-edit.component';
 
 @Component({
   selector: 'app-task-list',
-  imports: [CommonModule],
+  imports: [CommonModule, TaskInlineEditComponent],
   templateUrl: './task-list.component.html',
   styleUrls: ['./task-list.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,6 +26,7 @@ export class TaskListComponent {
   private sanitizer = inject(DomSanitizer);
   private refreshTrigger = signal(0);
   private errorState = signal<string | null>(null);
+  private editingTaskId = signal<string | null>(null);
   protected readonly PRIORITY_COLORS = PRIORITY_COLORS;
   createTaskRequested = output<void>();
 
@@ -233,8 +235,25 @@ export class TaskListComponent {
   }
 
   onTaskAction(taskId: string, action: 'edit' | 'delete' | 'status-change'): void {
-    // These will be implemented in future user stories
-    console.log(`Task ${action} clicked for task ${taskId}`);
+    if (action === 'edit') {
+      this.editingTaskId.set(taskId);
+    } else {
+      // These will be implemented in future user stories
+      console.log(`Task ${action} clicked for task ${taskId}`);
+    }
+  }
+
+  onTaskUpdated(updatedTask: Task): void {
+    this.editingTaskId.set(null);
+    this.forceRefresh();
+  }
+
+  onEditCancelled(): void {
+    this.editingTaskId.set(null);
+  }
+
+  isEditingTask(taskId: string): boolean {
+    return this.editingTaskId() === taskId;
   }
 
   /**
