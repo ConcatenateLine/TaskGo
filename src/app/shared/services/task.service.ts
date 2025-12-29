@@ -341,6 +341,23 @@ export class TaskService {
     // Require authentication
     this.authService.requireAuthentication();
 
+    // Validate input
+    if (!id || id.trim() === '') {
+      return false;
+    }
+
+    // Check for attack patterns
+    const validation = this.securityService.validateRequest({ id });
+    if (!validation.valid) {
+      this.authService.logSecurityEvent({
+        type: 'XSS_ATTEMPT',
+        message: `Delete attack attempt detected: ${validation.threats.join(', ')}`,
+        timestamp: new Date(),
+        userId: this.authService.getUserContext()?.userId,
+      });
+      return false;
+    }
+
     const tasks = this.tasks();
     const taskIndex = tasks.findIndex((task) => task.id === id);
 

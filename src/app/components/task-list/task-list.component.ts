@@ -27,6 +27,9 @@ export class TaskListComponent {
   private refreshTrigger = signal(0);
   private errorState = signal<string | null>(null);
   private editingTaskId = signal<string | null>(null);
+  private deleteModalOpen = signal<boolean>(false);
+  private taskToDelete = signal<string | null>(null);
+  private deleteInProgress = signal<Set<string>>(new Set());
   protected readonly PRIORITY_COLORS = PRIORITY_COLORS;
   createTaskRequested = output<void>();
 
@@ -141,8 +144,8 @@ export class TaskListComponent {
     // Remove sensitive patterns from ARIA labels
     let safeTitle = truncatedTitle;
     
-    // Case-insensitive password pattern replacement
-    safeTitle = safeTitle.replace(/[Pp]assword\s*=\s*/gi, 'p=');
+    // Case-insensitive password pattern replacement - more comprehensive
+    safeTitle = safeTitle.replace(/[Pp]assword\s*=\s*[^\s]+/gi, 'p=***');
     safeTitle = safeTitle.replace(/secret/gi, 'sensitive');
     safeTitle = safeTitle.replace(/confidential/gi, 'private');
     safeTitle = safeTitle.replace(/Confidential/gi, 'private');
@@ -237,6 +240,8 @@ export class TaskListComponent {
   onTaskAction(taskId: string, action: 'edit' | 'delete' | 'status-change'): void {
     if (action === 'edit') {
       this.editingTaskId.set(taskId);
+    } else if (action === 'delete') {
+      this.openDeleteModal(taskId);
     } else {
       // These will be implemented in future user stories
       console.log(`Task ${action} clicked for task ${taskId}`);
@@ -254,6 +259,130 @@ export class TaskListComponent {
 
   isEditingTask(taskId: string): boolean {
     return this.editingTaskId() === taskId;
+  }
+
+  /**
+   * Open delete confirmation modal
+   */
+  openDeleteModal(taskId: string): void {
+    this.taskToDelete.set(taskId);
+    this.deleteModalOpen.set(true);
+    
+    // Log delete attempt
+    this.authService.logSecurityEvent({
+      type: 'DATA_ACCESS',
+      message: `Task delete attempted: ${taskId}`,
+      timestamp: new Date(),
+      userId: this.authService.getUserContext()?.userId
+    });
+  }
+
+  /**
+   * Close delete confirmation modal
+   */
+  closeDeleteModal(): void {
+    this.deleteModalOpen.set(false);
+    this.taskToDelete.set(null);
+  }
+
+  /**
+   * Get the task being deleted for modal display
+   */
+  getTaskToDelete(): Task | null {
+    const taskId = this.taskToDelete();
+    if (!taskId) return null;
+    
+    const tasks = this.sortedTasks();
+    return tasks.find(task => task.id === taskId) || null;
+  }
+
+  /**
+   * Check if delete modal is open
+   */
+  isDeleteModalOpen(): boolean {
+    return this.deleteModalOpen();
+  }
+
+  /**
+   * Get the task ID to delete for template access
+   */
+  getTaskToDeleteId(): string | null {
+    return this.taskToDelete();
+  }
+
+  /**
+   * Confirm and delete task
+   */
+  confirmDelete(taskId: string): boolean {
+    try {
+      // Validate input
+      if (!taskId || taskId.trim() === '') {
+        return false;
+      }
+
+      // Check rate limiting
+      const rateLimit = this.securityService.checkRateLimit('deleteTask');
+      if (!rateLimit.allowed) {
+        this.authService.logSecurityEvent({
+          type: 'RATE_LIMIT_EXCEEDED',
+          message: 'Delete rate limit exceeded',
+          timestamp: new Date(),
+          userId: this.authService.getUserContext()?.userId
+        });
+        return false;
+      }
+
+      // Require authentication
+      this.authService.requireAuthentication();
+
+      // Set loading state
+      this.setDeleteInProgress(taskId, true);
+
+      // Call service to delete task
+      const result = this.taskService.deleteTask(taskId);
+
+      // Clear loading state
+      this.setDeleteInProgress(taskId, false);
+
+      if (result) {
+        // Refresh task list
+        this.forceRefresh();
+        // Close modal
+        this.closeDeleteModal();
+      }
+
+      return result;
+    } catch (error: any) {
+      // Clear loading state on error
+      this.setDeleteInProgress(taskId, false);
+      
+      // Handle errors gracefully
+      console.error('Delete task error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Set delete in progress state
+   */
+  setDeleteInProgress(taskId: string, inProgress: boolean): void {
+    const currentSet = this.deleteInProgress();
+    const newSet = new Set(currentSet);
+    
+    if (inProgress) {
+      newSet.add(taskId);
+    } else {
+      newSet.delete(taskId);
+    }
+    
+    this.deleteInProgress.set(newSet);
+  }
+
+  /**
+   * Check if deletion is in progress for a task
+   */
+  isDeleteInProgress(taskId: string): boolean {
+    return this.deleteInProgress().has(taskId);
   }
 
   /**

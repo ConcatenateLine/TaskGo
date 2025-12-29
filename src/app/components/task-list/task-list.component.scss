@@ -243,6 +243,15 @@
       color: #dc2626;
       border-color: #fca5a5;
     }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    &.loading {
+      opacity: 0.7;
+    }
   }
 }
 
@@ -305,4 +314,103 @@
 .task-list__action-btn:focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
+}
+
+// Delete Confirmation Modal
+.delete-confirmation-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-confirmation-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.delete-confirmation-content {
+  position: relative;
+  background: white;
+  border-radius: 0.75rem;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.delete-confirmation-header {
+  margin-bottom: 1.5rem;
+}
+
+.delete-confirmation-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--gray-900, #111827);
+  margin: 0;
+}
+
+.delete-confirmation-body {
+  margin-bottom: 2rem;
+}
+
+.delete-confirmation-message {
+  font-size: 1rem;
+  color: var(--gray-700, #374151);
+  line-height: 1.6;
+}
+
+.delete-confirmation-footer {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.cancel-delete-btn,
+.confirm-delete-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.cancel-delete-btn {
+  background-color: var(--gray-200, #e5e7eb);
+  color: var(--gray-700, #374151);
+
+  &:hover {
+    background-color: var(--gray-300, #d1d5db);
+  }
+}
+
+.confirm-delete-btn {
+  background-color: #dc2626;
+  color: white;
+
+  &:hover:not(:disabled) {
+    background-color: #b91c1c;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.loading-spinner {
+  display: inline-block;
+  margin-right: 0.5rem;
 }

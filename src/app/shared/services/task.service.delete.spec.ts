@@ -73,6 +73,7 @@ describe('TaskService - Delete Functionality (US-004)', () => {
     securityService.validateRequest.mockReturnValue({ valid: true, threats: [] });
     validationService.validateTaskTitle.mockReturnValue({ isValid: true, sanitized: mockTask.title });
     validationService.validateTaskDescription.mockReturnValue({ isValid: true, sanitized: mockTask.description });
+    validationService.validateCSP.mockReturnValue({ isValid: true, violations: [] });
     validationService.sanitizeForDisplay.mockImplementation((input: string) => input);
     cryptoService.getItem.mockReturnValue([]);
     
@@ -289,6 +290,9 @@ describe('TaskService - Delete Functionality (US-004)', () => {
 
   describe('Delete Task - Edge Cases', () => {
     it('should handle deletion of the last task', () => {
+      // Clear any existing tasks for clean test
+      service.clearTasks();
+      
       // Create single task
       service.createTask({
         title: 'Only Task',
@@ -316,6 +320,9 @@ describe('TaskService - Delete Functionality (US-004)', () => {
     });
 
     it('should handle concurrent deletions safely', () => {
+      // Clear any existing tasks for clean test
+      service.clearTasks();
+      
       // Create multiple tasks
       for (let i = 0; i < 3; i++) {
         service.createTask({
@@ -359,6 +366,9 @@ describe('TaskService - Delete Functionality (US-004)', () => {
 
   describe('Delete Task - Data Integrity', () => {
     it('should preserve other tasks when deleting one', () => {
+      // Clear any existing tasks for clean test
+      service.clearTasks();
+      
       // Create multiple tasks
       const createdTasks = [
         service.createTask({
@@ -394,6 +404,9 @@ describe('TaskService - Delete Functionality (US-004)', () => {
     });
 
     it('should maintain task order after deletion', () => {
+      // Clear any existing tasks for clean test
+      service.clearTasks();
+      
       // Create tasks with different creation dates
       const oldTask = service.createTask({
         title: 'Old Task',
@@ -422,6 +435,9 @@ describe('TaskService - Delete Functionality (US-004)', () => {
     });
 
     it('should handle deletion of tasks with special properties', () => {
+      // Clear any existing tasks for clean test
+      service.clearTasks();
+      
       // Create task with all properties
       const task = service.createTask({
         title: 'Complex Task',
@@ -440,6 +456,9 @@ describe('TaskService - Delete Functionality (US-004)', () => {
 
   describe('Delete Task - Performance', () => {
     it('should complete deletion in reasonable time', () => {
+      // Clear any existing tasks for clean test
+      service.clearTasks();
+      
       // Create a task
       service.createTask({
         title: 'Performance Test Task',
@@ -459,6 +478,9 @@ describe('TaskService - Delete Functionality (US-004)', () => {
     });
 
     it('should handle multiple deletions efficiently', () => {
+      // Clear any existing tasks for clean test
+      service.clearTasks();
+      
       // Create multiple tasks
       const taskIds: string[] = [];
       for (let i = 0; i < 10; i++) {
