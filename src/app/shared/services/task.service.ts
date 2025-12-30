@@ -15,6 +15,10 @@ export class TaskService {
   private authService = inject(AuthService);
   private securityService = inject(SecurityService);
 
+  constructor() {
+    this.loadFromEncryptedStorage();
+  }
+
   /**
    * Load tasks from encrypted storage
    */
@@ -55,11 +59,6 @@ export class TaskService {
 
     // Require authentication
     this.authService.requireAuthentication();
-
-    // Load from encrypted storage if not in memory
-    if (this.tasks().length === 0) {
-      this.loadFromEncryptedStorage();
-    }
 
     return this.tasks();
   }

@@ -4,7 +4,8 @@
   <span class="task-list__error-icon">⚠️</span>
   <span>{{ getErrorMessage() }}</span>
 </div>
-} @else {
+}
+
 <!-- Task List Header -->
 <div class="task-list__header">
   <h2 class="task-list__title">Tasks</h2>
@@ -43,7 +44,8 @@
     + Create Task
   </button>
 </div>
-} @else {
+}
+
 <!-- Tasks List -->
 <div class="task-list__tasks">
   @for (task of sortedTasks(); track task.id) {
@@ -115,7 +117,6 @@
   </article>
   }
 </div>
-}
 
 <!-- Create Task Button (when tasks exist) -->
 @if (!isEmpty()) {
@@ -152,7 +153,7 @@
       <button class="cancel-delete-btn" (click)="closeDeleteModal()" aria-label="Cancel deletion">
         Cancel
       </button>
-      <button class="confirm-delete-btn" (click)="confirmDelete(getTaskToDeleteId()!)"
+      <button class="confirm-delete-btn" (click)="confirmDelete(getTaskToDeleteId()!); $event.preventDefault()"
         [disabled]="isDeleteInProgress(getTaskToDeleteId()!)" aria-label="Confirm task deletion">
         @if (isDeleteInProgress(getTaskToDeleteId()!)) {
         <span class="loading-spinner">⏳</span>
@@ -163,8 +164,6 @@
   </div>
 </div>
 }
-}
 
 <!-- Screen reader announcer -->
 <div id="task-deletion-announcer" class="task-deletion__announcer" aria-live="polite" aria-atomic="true"></div>
-

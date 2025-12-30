@@ -422,3 +422,20 @@
     height: 1px;
     overflow: hidden;
   }
+
+  .error-message {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 0.5rem;
+    color: #dc2626;
+    font-size: 0.875rem;
+    margin: 1rem 0;
+  }
+
+  .error-message__icon {
+    font-size: 1rem;
+  }
