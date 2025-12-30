@@ -30,6 +30,30 @@
   flex-shrink: 0;
 }
 
+.app__error-message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background: #ef4444;
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
+  animation: slideInRight 0.3s ease-out;
+  max-width: 400px;
+}
+
+.app__error-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
 .app-header {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
@@ -98,6 +122,7 @@
     opacity: 0;
     transform: translateX(100%);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);

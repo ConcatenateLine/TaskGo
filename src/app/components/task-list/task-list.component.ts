@@ -7,10 +7,11 @@ import { ValidationService } from '../../shared/services/validation.service';
 import { AuthService } from '../../shared/services/auth.service';
 import { SecurityService } from '../../shared/services/security.service';
 import { TaskInlineEditComponent } from '../task-inline-edit/task-inline-edit.component';
+import { FocusTrapDirective } from '../../shared/directives/focus-trap.directive';
 
 @Component({
   selector: 'app-task-list',
-  imports: [CommonModule, TaskInlineEditComponent],
+  imports: [CommonModule, TaskInlineEditComponent, FocusTrapDirective],
   templateUrl: './task-list.component.html',
   styleUrls: ['./task-list.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,6 +33,8 @@ export class TaskListComponent {
   private deleteInProgress = signal<Set<string>>(new Set());
   protected readonly PRIORITY_COLORS = PRIORITY_COLORS;
   createTaskRequested = output<void>();
+  taskDeleted = output<void>();
+  actionError = output<Error>();
 
   statusFilter = input<'all' | 'TODO' | 'IN_PROGRESS' | 'DONE'>('all');
   projectFilter = input<'all' | 'Personal' | 'Work' | 'Study' | 'General'>('all');
@@ -39,18 +42,18 @@ export class TaskListComponent {
   filteredTasks = computed(() => {
     // Include refresh trigger to ensure reactivity
     this.refreshTrigger();
-    
+
     const status = this.statusFilter();
     const project = this.projectFilter();
-    
+
     try {
       const tasks = this.taskService.getTasksByStatusAndProject(status, project);
-      
+
       // Handle null/undefined cases
       if (!tasks || !Array.isArray(tasks)) {
         return [];
       }
-      
+
       return tasks;
     } catch (error: any) {
       // Check if this is a security-related error
@@ -64,10 +67,10 @@ export class TaskListComponent {
           severity: error.severity || 'MEDIUM'
         });
       }
-      
+
       // Set error state for display
       this.errorState.set(this.sanitizeErrorMessage(error?.message || 'An error occurred'));
-      
+
       // Return empty array on error
       return [];
     }
@@ -79,19 +82,19 @@ export class TaskListComponent {
       return [];
     }
     // Create a stable sort to avoid reference changes
-    return [...tasks].sort((a: Task, b: Task) => 
+    return [...tasks].sort((a: Task, b: Task) =>
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   });
 
   isEmpty = computed(() => this.sortedTasks().length === 0);
-  
+
   taskCounts = computed(() => {
     // Include refresh trigger to ensure reactivity
     this.refreshTrigger();
-    
+
     const counts = this.taskService.getTaskCounts();
-    
+
     return counts || {
       todo: 0,
       inProgress: 0,
@@ -137,19 +140,19 @@ export class TaskListComponent {
   getSafeAriaLabel(task: Task, action: string): string {
     // Sanitize and truncate for accessibility
     const sanitizedTitle = this.getSanitizedTitle(task);
-    const truncatedTitle = sanitizedTitle.length > 50 
-      ? sanitizedTitle.substring(0, 50) + '...' 
+    const truncatedTitle = sanitizedTitle.length > 50
+      ? sanitizedTitle.substring(0, 50) + '...'
       : sanitizedTitle;
-    
+
     // Remove sensitive patterns from ARIA labels
     let safeTitle = truncatedTitle;
-    
+
     // Case-insensitive password pattern replacement - more comprehensive
     safeTitle = safeTitle.replace(/[Pp]assword\s*=\s*[^\s]+/gi, 'p=***');
     safeTitle = safeTitle.replace(/secret/gi, 'sensitive');
     safeTitle = safeTitle.replace(/confidential/gi, 'private');
     safeTitle = safeTitle.replace(/Confidential/gi, 'private');
-    
+
     return `${action}: ${safeTitle}`;
   }
 
@@ -209,11 +212,11 @@ export class TaskListComponent {
     if (!date) {
       return new Date();
     }
-    
+
     if (date instanceof Date) {
       return isNaN(date.getTime()) ? new Date() : date;
     }
-    
+
     // Handle string dates
     const parsedDate = new Date(date);
     return isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
@@ -267,7 +270,7 @@ export class TaskListComponent {
   openDeleteModal(taskId: string): void {
     this.taskToDelete.set(taskId);
     this.deleteModalOpen.set(true);
-    
+
     // Log delete attempt
     this.authService.logSecurityEvent({
       type: 'DATA_ACCESS',
@@ -291,7 +294,7 @@ export class TaskListComponent {
   getTaskToDelete(): Task | null {
     const taskId = this.taskToDelete();
     if (!taskId) return null;
-    
+
     const tasks = this.sortedTasks();
     return tasks.find(task => task.id === taskId) || null;
   }
@@ -345,6 +348,16 @@ export class TaskListComponent {
       this.setDeleteInProgress(taskId, false);
 
       if (result) {
+        this.announceToScreenReader('Task deleted successfully');
+
+        // Log delete success
+        this.authService.logSecurityEvent({
+          type: 'DATA_ACCESS',
+          message: `Task deleted: ${taskId}`,
+          timestamp: new Date(),
+          userId: this.authService.getUserContext()?.userId
+        });
+
         // Refresh task list
         this.forceRefresh();
         // Close modal
@@ -355,7 +368,14 @@ export class TaskListComponent {
     } catch (error: any) {
       // Clear loading state on error
       this.setDeleteInProgress(taskId, false);
-      
+
+      // Expose error to user
+      const errorMessage = this.sanitizeErrorMessage(error.message);
+      this.actionError.emit(new Error(errorMessage));
+
+      // Announce to screen readers (component level)
+      this.announceToScreenReader(errorMessage);
+
       // Handle errors gracefully
       console.error('Delete task error:', error);
       return false;
@@ -368,13 +388,13 @@ export class TaskListComponent {
   setDeleteInProgress(taskId: string, inProgress: boolean): void {
     const currentSet = this.deleteInProgress();
     const newSet = new Set(currentSet);
-    
+
     if (inProgress) {
       newSet.add(taskId);
     } else {
       newSet.delete(taskId);
     }
-    
+
     this.deleteInProgress.set(newSet);
   }
 
@@ -392,7 +412,7 @@ export class TaskListComponent {
     if (!message) {
       return 'An error occurred';
     }
-    
+
     return message
       .replace(/password=[\w\s\-._]+/gi, 'password=***')
       .replace(/host=[\w\s\-._]+/gi, 'host=***')
@@ -414,5 +434,13 @@ export class TaskListComponent {
    */
   getErrorMessage(): string {
     return this.errorState() || '';
+  }
+
+  announceToScreenReader(message: string): void {
+    // Implementation for screen reader announcements
+    const announcementElement = document.getElementById('task-deletion-announcer');
+    if (announcementElement) {
+      announcementElement.textContent = message;
+    }
   }
 }

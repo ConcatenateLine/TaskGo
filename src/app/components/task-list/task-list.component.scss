@@ -414,3 +414,11 @@
   display: inline-block;
   margin-right: 0.5rem;
 }
+
+  .task-deletion__announcer {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }

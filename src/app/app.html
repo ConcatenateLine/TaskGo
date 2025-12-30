@@ -1,9 +1,17 @@
 <!-- Global Success Message -->
 @if (successMessage()) {
-  <div class="app__success-message" role="alert" aria-live="polite">
-    <span class="app__success-icon">✅</span>
-    {{ successMessage() }}
-  </div>
+<div class="app__success-message" role="alert" aria-live="polite">
+  <span class="app__success-icon">✅</span>
+  {{ successMessage() }}
+</div>
+}
+
+<!-- Global Error Message -->
+@if (errorMessage()) {
+<div class="app__error-message" role="alert" aria-live="polite">
+  <span class="app__error-icon">❌</span>
+  {{ errorMessage() }}
+</div>
 }
 
 <header class="app-header">
@@ -15,8 +23,9 @@
 
 <main class="app-main">
   @if (showTaskCreation()) {
-    <app-task-creation-form (taskCreated)="onTaskCreated($event)" (cancelled)="onTaskCreationCancelled()" />
+  <app-task-creation-form (taskCreated)="onTaskCreated($event)" (cancelled)="onTaskCreationCancelled()" />
   } @else {
-    <app-task-list (createTaskRequested)="onCreateTaskRequested()" />
+  <app-task-list (createTaskRequested)="onCreateTaskRequested()" (taskDeleted)="onTaskDeleted()"
+    (actionError)="onActionError($event)" />
   }
 </main>

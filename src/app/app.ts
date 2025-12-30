@@ -17,6 +17,7 @@ export class App implements OnInit {
   protected readonly title = signal('TaskGo');
   protected readonly showTaskCreation = signal(false);
   protected readonly successMessage = signal<string | null>(null);
+  protected readonly errorMessage = signal<string | null>(null);
 
   constructor(
     private taskService: TaskService,
@@ -64,15 +65,15 @@ export class App implements OnInit {
 
   onTaskCreated(task: Task): void {
     console.log('Task created:', task);
-    
+
     // Show success message globally
     this.successMessage.set('Task created successfully');
-    
+
     // Clear success message after 3 seconds
     setTimeout(() => {
       this.successMessage.set(null);
     }, 3000);
-    
+
     // Switch back to task list immediately
     this.showTaskCreation.set(false);
   }
@@ -81,13 +82,33 @@ export class App implements OnInit {
     this.showTaskCreation.set(false);
   }
 
+  onTaskDeleted(): void {
+    // Show success message globally
+    this.successMessage.set('Task deleted successfully');
+
+    // Clear success message after 3 seconds
+    setTimeout(() => {
+      this.successMessage.set(null);
+    }, 3000);
+  }
+
+  onActionError(error: Error): void {
+    console.error('An error occurred:', error.message);
+    this.errorMessage.set(error.message);
+
+    // Clear error message after 3 seconds
+    setTimeout(() => {
+      this.errorMessage.set(null);
+    }, 3000);
+  }
+
   /**
    * Check if app is running in secure context
    */
   isSecureContext(): boolean {
     return (
       typeof window !== 'undefined' &&
-      (window.location.protocol === 'https:' || 
+      (window.location.protocol === 'https:' ||
        window.location.hostname === 'localhost' ||
        window.location.hostname === '127.0.0.1')
     );

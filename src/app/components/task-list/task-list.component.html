@@ -1,202 +1,170 @@
 <!-- Error Display -->
 @if (hasError()) {
-  <div class="task-list__error">
-    <span class="task-list__error-icon">⚠️</span>
-    <span>{{ getErrorMessage() }}</span>
-  </div>
+<div class="task-list__error">
+  <span class="task-list__error-icon">⚠️</span>
+  <span>{{ getErrorMessage() }}</span>
+</div>
 } @else {
-  <!-- Task List Header -->
-  <div class="task-list__header">
-    <h2 class="task-list__title">Tasks</h2>
+<!-- Task List Header -->
+<div class="task-list__header">
+  <h2 class="task-list__title">Tasks</h2>
 
-    <div class="task-list__counts">
-      @if (taskCounts(); as counts) {
-        <div class="task-list__count">
-          <span>To Do</span>
-          <span class="task-list__count-number">{{ counts.todo }}</span>
-        </div>
-        <div class="task-list__count">
-          <span>In Progress</span>
-          <span class="task-list__count-number">{{ counts.inProgress }}</span>
-        </div>
-        <div class="task-list__count">
-          <span>Done</span>
-          <span class="task-list__count-number">{{ counts.done }}</span>
-        </div>
-        <div class="task-list__count">
-          <span>Total</span>
-          <span class="task-list__count-number">{{ counts.total }}</span>
-        </div>
-      }
+  <div class="task-list__counts">
+    @if (taskCounts(); as counts) {
+    <div class="task-list__count">
+      <span>To Do</span>
+      <span class="task-list__count-number">{{ counts.todo }}</span>
     </div>
+    <div class="task-list__count">
+      <span>In Progress</span>
+      <span class="task-list__count-number">{{ counts.inProgress }}</span>
+    </div>
+    <div class="task-list__count">
+      <span>Done</span>
+      <span class="task-list__count-number">{{ counts.done }}</span>
+    </div>
+    <div class="task-list__count">
+      <span>Total</span>
+      <span class="task-list__count-number">{{ counts.total }}</span>
+    </div>
+    }
   </div>
+</div>
 
-  <!-- Empty State -->
-  @if (isEmpty()) {
-    <div class="task-list__empty">
-      <div class="task-list__empty-icon">📋</div>
-      <h2 class="task-list__empty-title">No tasks</h2>
-      <p class="task-list__empty-description">
-        Start by creating your first task to get organized!
-      </p>
-      <button
-        class="task-list__create-btn"
-        (click)="onCreateTask()"
-        aria-label="Create new task"
-      >
-        + Create Task
-      </button>
-    </div>
-  } @else {
-    <!-- Tasks List -->
-    <div class="task-list__tasks">
-      @for (task of sortedTasks(); track task.id) {
-        <article class="task-list__task" tabindex="0" role="article">
-          @if (isEditingTask(task.id)) {
-            <!-- Edit Mode -->
-            <app-task-inline-edit
-              [task]="task"
-              (taskUpdated)="onTaskUpdated($event)"
-              (editCancelled)="onEditCancelled()"
-            />
-          } @else {
-            <!-- View Mode -->
-            <header class="task-list__task-header">
-              <h2 class="task-list__task-title" [textContent]="getTruncatedTitle(task, 500)"></h2>
-              <div class="task-list__task-badges">
-                <!-- Priority Badge -->
-                <span
-                  class="task-list__badge task-list__badge--priority"
-                  [style.background-color]="PRIORITY_COLORS[task.priority]"
-                  [style.color]="'#ffffff'"
-                  [style.padding]="'2px 8px'"
-                  [style.border-radius]="'12px'"
-                  [style.font-size]="'12px'"
-                  [style.font-weight]="'500'"
-                  aria-label="Priority: {{ task.priority }}"
-                >
-                  {{ task.priority }}
-                </span>
+<!-- Empty State -->
+@if (isEmpty()) {
+<div class="task-list__empty">
+  <div class="task-list__empty-icon">📋</div>
+  <h2 class="task-list__empty-title">No tasks</h2>
+  <p class="task-list__empty-description">
+    Start by creating your first task to get organized!
+  </p>
+  <button class="task-list__create-btn" (click)="onCreateTask()" aria-label="Create new task">
+    + Create Task
+  </button>
+</div>
+} @else {
+<!-- Tasks List -->
+<div class="task-list__tasks">
+  @for (task of sortedTasks(); track task.id) {
+  <article class="task-list__task" tabindex="0" role="article">
+    @if (isEditingTask(task.id)) {
+    <!-- Edit Mode -->
+    <app-task-inline-edit [task]="task" (taskUpdated)="onTaskUpdated($event)" (editCancelled)="onEditCancelled()" />
+    } @else {
+    <!-- View Mode -->
+    <header class="task-list__task-header">
+      <h2 class="task-list__task-title" [textContent]="getTruncatedTitle(task, 500)"></h2>
+      <div class="task-list__task-badges">
+        <!-- Priority Badge -->
+        <span class="task-list__badge task-list__badge--priority"
+          [style.background-color]="PRIORITY_COLORS[task.priority]" [style.color]="'#ffffff'"
+          [style.padding]="'2px 8px'" [style.border-radius]="'12px'" [style.font-size]="'12px'"
+          [style.font-weight]="'500'" aria-label="Priority: {{ task.priority }}">
+          {{ task.priority }}
+        </span>
 
-                <!-- Project Badge -->
-                <span
-                  class="task-list__badge task-list__badge--project task-list__badge--project-{{ task.project.toLowerCase() }}"
-                  [class]="getProjectBadgeClasses(task.project)"
-                  aria-label="Project: {{ task.project }}"
-                >
-                  {{ task.project }}
-                </span>
+        <!-- Project Badge -->
+        <span
+          class="task-list__badge task-list__badge--project task-list__badge--project-{{ task.project.toLowerCase() }}"
+          [class]="getProjectBadgeClasses(task.project)" aria-label="Project: {{ task.project }}">
+          {{ task.project }}
+        </span>
 
-                <!-- Status Badge -->
-                <span
-                  class="task-list__badge task-list__badge--status"
-                  aria-label="Status: {{ getStatusDisplay(task.status) }}"
-                >
-                  {{ getStatusDisplay(task.status) }}
-                </span>
-              </div>
-            </header>
+        <!-- Status Badge -->
+        <span class="task-list__badge task-list__badge--status"
+          aria-label="Status: {{ getStatusDisplay(task.status) }}">
+          {{ getStatusDisplay(task.status) }}
+        </span>
+      </div>
+    </header>
 
-            @if (task.description) {
-              <p class="task-list__task-description" [innerHTML]="getSafeHtml(getSanitizedDescription(task))"></p>
-            }
+    @if (task.description) {
+    <p class="task-list__task-description" [innerHTML]="getSafeHtml(getSanitizedDescription(task))"></p>
+    }
 
-            <footer class="task-list__task-footer">
-              <div class="task-list__task-date">
-                <span aria-hidden="true">📅</span>
-                <time [attr.datetime]="formatDateIso(task.createdAt)">
-                  Created {{ formatDate(task.createdAt) }}
-                </time>
-                @if (getSafeDate(task.updatedAt).getTime() !== getSafeDate(task.createdAt).getTime()) {
-                  <span class="task-list__task-updated">
-                    • Updated {{ formatDate(task.updatedAt) }}
-                  </span>
-                }
-              </div>
+    <footer class="task-list__task-footer">
+      <div class="task-list__task-date">
+        <span aria-hidden="true">📅</span>
+        <time [attr.datetime]="formatDateIso(task.createdAt)">
+          Created {{ formatDate(task.createdAt) }}
+        </time>
+        @if (getSafeDate(task.updatedAt).getTime() !== getSafeDate(task.createdAt).getTime()) {
+        <span class="task-list__task-updated">
+          • Updated {{ formatDate(task.updatedAt) }}
+        </span>
+        }
+      </div>
 
-              <div class="task-list__task-actions">
-                <button
-                  class="task-list__action-btn task-list__action-btn--edit"
-                  (click)="onTaskAction(task.id, 'edit')"
-                  [attr.aria-label]="getSafeAriaLabel(task, 'Edit task')"
-                >
-                  ✏️ Edit
-                </button>
-                <button
-                  class="task-list__action-btn task-list__action-btn--delete"
-                  [class.loading]="isDeleteInProgress(task.id)"
-                  [disabled]="isDeleteInProgress(task.id)"
-                  (click)="onTaskAction(task.id, 'delete')"
-                  [attr.aria-label]="getSafeAriaLabel(task, 'Delete task')"
-                >
-                  @if (isDeleteInProgress(task.id)) {
-                    <span class="loading-spinner">⏳</span>
-                  }
-                  🗑️ Delete
-                </button>
-              </div>
-            </footer>
+      <div class="task-list__task-actions">
+        <button class="task-list__action-btn task-list__action-btn--edit" (click)="onTaskAction(task.id, 'edit')"
+          [attr.aria-label]="getSafeAriaLabel(task, 'Edit task')">
+          ✏️ Edit
+        </button>
+        <button class="task-list__action-btn task-list__action-btn--delete"
+          [class.loading]="isDeleteInProgress(task.id)" [disabled]="isDeleteInProgress(task.id)"
+          (click)="onTaskAction(task.id, 'delete')" [attr.aria-label]="getSafeAriaLabel(task, 'Delete task')">
+          @if (isDeleteInProgress(task.id)) {
+          <span class="loading-spinner">⏳</span>
           }
-        </article>
+          🗑️ Delete
+        </button>
+      </div>
+    </footer>
+    }
+  </article>
+  }
+</div>
+}
+
+<!-- Create Task Button (when tasks exist) -->
+@if (!isEmpty()) {
+<div class="task-list__create-container">
+  <button class="task-list__create-btn" (click)="onCreateTask()" aria-label="Create new task">
+    + Create Task
+  </button>
+</div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (isDeleteModalOpen()) {
+<div class="delete-confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title"
+  appFocusTrap>
+  <div class="delete-confirmation-backdrop" (click)="closeDeleteModal()"></div>
+  <div class="delete-confirmation-content">
+    <header class="delete-confirmation-header">
+      <h3 id="delete-modal-title" class="delete-confirmation-title">Are you sure?</h3>
+    </header>
+
+    <div class="delete-confirmation-body">
+      @if (getTaskToDelete(); as task) {
+      <p class="delete-confirmation-message">
+        Are you sure you want to delete the task: "{{ getSanitizedTitle(task) }}"?
+      </p>
+      } @else {
+      <p class="delete-confirmation-message">
+        Are you sure you want to delete this task?
+      </p>
       }
     </div>
-  }
 
-  <!-- Create Task Button (when tasks exist) -->
-  @if (!isEmpty()) {
-    <div class="task-list__create-container">
-      <button
-        class="task-list__create-btn"
-        (click)="onCreateTask()"
-        aria-label="Create new task"
-      >
-        + Create Task
+    <footer class="delete-confirmation-footer">
+      <button class="cancel-delete-btn" (click)="closeDeleteModal()" aria-label="Cancel deletion">
+        Cancel
       </button>
-    </div>
-  }
-
-  <!-- Delete Confirmation Modal -->
-  @if (isDeleteModalOpen()) {
-    <div class="delete-confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
-      <div class="delete-confirmation-backdrop" (click)="closeDeleteModal()"></div>
-      <div class="delete-confirmation-content">
-        <header class="delete-confirmation-header">
-          <h3 id="delete-modal-title" class="delete-confirmation-title">Are you sure?</h3>
-        </header>
-        
-        <div class="delete-confirmation-body">
-          @if (getTaskToDelete(); as task) {
-            <p class="delete-confirmation-message">
-              Are you sure you want to delete the task: "{{ getSanitizedTitle(task) }}"?
-            </p>
-          } @else {
-            <p class="delete-confirmation-message">
-              Are you sure you want to delete this task?
-            </p>
-          }
-        </div>
-        
-        <footer class="delete-confirmation-footer">
-          <button 
-            class="cancel-delete-btn"
-            (click)="closeDeleteModal()"
-            aria-label="Cancel deletion"
-          >
-            Cancel
-          </button>
-          <button 
-            class="confirm-delete-btn"
-            (click)="confirmDelete(getTaskToDeleteId()!)"
-            [disabled]="isDeleteInProgress(getTaskToDeleteId()!)"
-            aria-label="Confirm task deletion"
-          >
-            @if (isDeleteInProgress(getTaskToDeleteId()!)) {
-              <span class="loading-spinner">⏳</span>
-            }
-            Delete
-          </button>
-        </footer>
-      </div>
-    </div>
-  }
+      <button class="confirm-delete-btn" (click)="confirmDelete(getTaskToDeleteId()!)"
+        [disabled]="isDeleteInProgress(getTaskToDeleteId()!)" aria-label="Confirm task deletion">
+        @if (isDeleteInProgress(getTaskToDeleteId()!)) {
+        <span class="loading-spinner">⏳</span>
+        }
+        Delete
+      </button>
+    </footer>
+  </div>
+</div>
 }
+}
+
+<!-- Screen reader announcer -->
+<div id="task-deletion-announcer" class="task-deletion__announcer" aria-live="polite" aria-atomic="true"></div>
+
