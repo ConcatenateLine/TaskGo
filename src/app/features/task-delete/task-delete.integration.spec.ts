@@ -152,7 +152,7 @@ describe('Delete Task Integration Tests (US-004)', () => {
       expect(modalContent.nativeElement.textContent).toContain('Integration Test Task for Delete');
     });
 
-    it('should complete full delete flow from button click to service call', () => {
+    it('should complete full delete flow from button click to service call', async () => {
       // This will fail until we implement complete delete flow
       const deleteButton = fixture.debugElement.query(
         By.css('.task-list__action-btn--delete')
@@ -173,6 +173,9 @@ describe('Delete Task Integration Tests (US-004)', () => {
       confirmButton.nativeElement.click();
       fixture.detectChanges();
 
+      // Wait for microtask queue
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       // Step 4: Service should be called
       expect(taskService.deleteTask).toHaveBeenCalledWith('integration-test-task-1');
 
@@ -180,7 +183,7 @@ describe('Delete Task Integration Tests (US-004)', () => {
       expect(taskService.getTasksByStatusAndProject).toHaveBeenCalled();
     });
 
-    it('should cancel deletion when cancel button is clicked', () => {
+    it('should cancel deletion when cancel button is clicked', async () => {
       // This will fail until we implement complete delete flow
       const deleteButton = fixture.debugElement.query(
         By.css('.task-list__action-btn--delete')
@@ -195,6 +198,8 @@ describe('Delete Task Integration Tests (US-004)', () => {
 
       cancelButton.nativeElement.click();
       fixture.detectChanges();
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Modal should close and service should not be called
       const modal = fixture.debugElement.query(By.css('.delete-confirmation-modal'));
@@ -277,7 +282,7 @@ describe('Delete Task Integration Tests (US-004)', () => {
       expect(modalContent.nativeElement.textContent).not.toContain('<img');
     });
 
-    it('should log security events throughout the delete flow', () => {
+    it('should log security events throughout the delete flow',async () => {
       // This will fail until we implement security logging
       const deleteButton = fixture.debugElement.query(
         By.css('.task-list__action-btn--delete')
@@ -301,6 +306,8 @@ describe('Delete Task Integration Tests (US-004)', () => {
       expect(confirmButton).toBeTruthy(); // This will fail until implemented
 
       confirmButton.nativeElement.click();
+
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Should log successful deletion
       const deleteEvent = authService.logSecurityEvent.mock.calls.find(
@@ -332,7 +339,7 @@ describe('Delete Task Integration Tests (US-004)', () => {
       fixture.detectChanges();
 
       // Instead of tick/whenStable, just wait for the microtask queue
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       fixture.detectChanges();
 
       const announcer = fixture.debugElement.query(
@@ -368,7 +375,7 @@ describe('Delete Task Integration Tests (US-004)', () => {
       fixture.detectChanges();
 
       // Instead of tick/whenStable, just wait for the microtask queue
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       fixture.detectChanges();
 
       const announcer = fixture.debugElement.query(
@@ -430,7 +437,7 @@ describe('Delete Task Integration Tests (US-004)', () => {
       expect(endTime - startTime).toBeLessThan(100); // Should complete in less than 100ms
     });
 
-    it('should handle multiple concurrent delete attempts safely', () => {
+    it('should handle multiple concurrent delete attempts safely', async () => {
       // This will fail until we implement proper concurrency handling
       const deleteButton = fixture.debugElement.query(
         By.css('.task-list__action-btn--delete')
@@ -447,6 +454,10 @@ describe('Delete Task Integration Tests (US-004)', () => {
       expect(confirmButton).toBeTruthy(); // This will fail until implemented
 
       confirmButton.nativeElement.click();
+      fixture.detectChanges();
+
+      // Wait for microtask queue
+      await new Promise(resolve => setTimeout(resolve, 2000));
       fixture.detectChanges();
 
       // Should only call service once

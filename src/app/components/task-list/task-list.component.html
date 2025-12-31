@@ -130,7 +130,7 @@
 <!-- Delete Confirmation Modal -->
 @if (isDeleteModalOpen()) {
 <div class="delete-confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title"
-  appFocusTrap>
+  appFocusTrap (keydown.escape)="closeDeleteModal()">
   <div class="delete-confirmation-backdrop" (click)="closeDeleteModal()"></div>
   <div class="delete-confirmation-content">
     <header class="delete-confirmation-header">

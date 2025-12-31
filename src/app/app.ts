@@ -23,7 +23,12 @@ export class App implements OnInit {
     private taskService: TaskService,
     private authService: AuthService,
     private securityService: SecurityService
-  ) {}
+  ) {
+    if (ngDevMode) {
+      // Angular flag for dev builds
+      (window as any).taskService = this.taskService;
+    }
+  }
 
   ngOnInit() {
     // Initialize authentication for development
@@ -109,8 +114,8 @@ export class App implements OnInit {
     return (
       typeof window !== 'undefined' &&
       (window.location.protocol === 'https:' ||
-       window.location.hostname === 'localhost' ||
-       window.location.hostname === '127.0.0.1')
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1')
     );
   }
 }
