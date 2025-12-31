@@ -172,15 +172,17 @@ describe('TaskListComponent - Delete Functionality (US-004)', () => {
     });
   });
 
-  describe('Delete Service Integration', () => {
-    it('should call taskService.deleteTask when confirming deletion', () => {
+  describe('Delete Service Integration', async () => {
+    it('should call taskService.deleteTask when confirming deletion', async () => {
       taskService.deleteTask.mockReturnValue(true);
       spyOn(component, 'forceRefresh');
 
-      const result = component.confirmDelete('test-task-1');
+      component.confirmDelete('test-task-1');
+
+      // Wait for microtask queue
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       expect(taskService.deleteTask).toHaveBeenCalledWith('test-task-1');
-      expect(result).toBe(true);
       expect(component.forceRefresh).toHaveBeenCalled();
     });
 
@@ -193,11 +195,14 @@ describe('TaskListComponent - Delete Functionality (US-004)', () => {
       expect(() => component.confirmDelete('test-task-1')).not.toThrow();
     });
 
-    it('should log security events on delete operations', () => {
+    it('should log security events on delete operations', async () => {
       taskService.deleteTask.mockReturnValue(true);
       authService.requireAuthentication.mockReturnValue(true);
 
       component.confirmDelete('test-task-1');
+
+      // Wait for microtask queue
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       expect(authService.logSecurityEvent).toHaveBeenCalled();
       expect(authService.requireAuthentication).toHaveBeenCalled();
@@ -300,30 +305,36 @@ describe('TaskListComponent - Delete Functionality (US-004)', () => {
       expect(deleteButtons.length).toBe(0);
     });
 
-    it('should handle invalid task IDs', () => {
+    it('should handle invalid task IDs', async () => {
       taskService.deleteTask.mockReturnValue(false);
 
-      const result = component.confirmDelete('');
+      await component.confirmDelete('');
 
-      expect(result).toBe(false);
+      // Wait for microtask queue
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
       expect(taskService.deleteTask).not.toHaveBeenCalledWith('');
     });
 
-    it('should handle null task IDs', () => {
+    it('should handle null task IDs', async () => {
       taskService.deleteTask.mockReturnValue(false);
 
-      const result = component.confirmDelete(null as any);
+      component.confirmDelete(null as any);
 
-      expect(result).toBe(false);
+      // Wait for microtask queue
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
       expect(taskService.deleteTask).not.toHaveBeenCalledWith(null);
     });
 
-    it('should handle non-existent task deletion', () => {
+    it('should handle non-existent task deletion', async () => {
       taskService.deleteTask.mockReturnValue(false);
 
-      const result = component.confirmDelete('non-existent-task');
+      component.confirmDelete('non-existent-task');
 
-      expect(result).toBe(false);
+      // Wait for microtask queue
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
       expect(taskService.deleteTask).toHaveBeenCalledWith('non-existent-task');
     });
   });

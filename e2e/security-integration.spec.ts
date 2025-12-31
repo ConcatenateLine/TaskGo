@@ -192,4 +192,39 @@ test.describe('Task List Functionality - E2E Tests', () => {
     expect(content).not.toContain('<script>');
     expect(content).not.toContain('javascript:');
   });
+
+  test('should handle task creation with sensitive data', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForSelector('.task-list');
+
+    // Create task with sensitive data via component access
+    await page.evaluate(() => {
+      const taskListComponent = (window as any).taskListComponent;
+      if (taskListComponent && taskListComponent.getComponentForTesting) {
+        const component = taskListComponent.getComponentForTesting();
+        const taskService = component.getTaskService();
+
+        taskService.createTask({
+          title: 'Task with password=secret123 and token=abc123',
+          priority: 'medium',
+          status: 'TODO',
+          project: 'Work'
+        });
+
+        component.forceRefresh();
+      }
+    });
+
+    await page.waitForTimeout(500);
+
+    // Verify sensitive data is not exposed in ARIA labels
+    const deleteButtons = page.locator('.task-list__action-btn--delete');
+    const sensitiveButton = deleteButtons.last();
+    const ariaLabel = await sensitiveButton.getAttribute('aria-label');
+
+    expect(ariaLabel).not.toContain('secret123');
+    expect(ariaLabel).not.toContain('abc123');
+    expect(ariaLabel).not.toMatch(/password=\*\*\*/);
+    expect(ariaLabel).not.toMatch(/token=\*\*\*/);
+  });
 });
