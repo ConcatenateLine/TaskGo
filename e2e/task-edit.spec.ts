@@ -466,6 +466,9 @@ test.describe('US-003: Edit Task - End-to-End Tests', () => {
       // Cancel immediately
       await page.locator('.task-inline-edit__btn--cancel').click();
 
+      // Await for cancel to complete
+      await page.waitForTimeout(100);
+
       // Verify form disappears
       await expect(page.locator('.task-inline-edit')).not.toBeVisible();
 

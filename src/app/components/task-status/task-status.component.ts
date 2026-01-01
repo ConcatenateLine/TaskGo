@@ -158,7 +158,7 @@ export class TaskStatusComponent {
     const labels: Record<TaskStatus, string> = {
       TODO: '← Back',
       IN_PROGRESS: '→ Start',
-      DONE: '',
+      DONE: '✔️ Done',
     };
     return labels[status] || '';
   }
@@ -180,12 +180,12 @@ export class TaskStatusComponent {
     event.preventDefault();
     const select = event.target as HTMLSelectElement;
     const newStatus = select.value as TaskStatus;
-    
+
     // Don't change status if empty value (placeholder option) is selected
     if (!newStatus) {
       return;
     }
-    
+
     this.changeStatus(newStatus);
   }
 

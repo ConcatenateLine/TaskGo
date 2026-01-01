@@ -317,7 +317,7 @@ test.describe('Delete Task E2E Tests (US-004)', () => {
       await page.click('.confirm-delete-btn');
 
       await page.waitForTimeout(2000);
-      
+
       // Should show error message in app component (not task-list)
       await expect(page.locator('.app__error-message')).toBeVisible();
       await expect(page.locator('.app__error-message')).toContainText('Unable to delete task');
@@ -395,6 +395,8 @@ test.describe('Delete Task E2E Tests (US-004)', () => {
       // Navigate to delete button with keyboard
       await page.keyboard.press('Tab');
       await page.keyboard.press('Tab');
+      await page.keyboard.press('Tab');
+      await page.keyboard.press('Tab');
       await page.keyboard.press('Tab'); // Should reach delete button
 
       const deleteButton = page.locator('.task-list__action-btn--delete').first();
@@ -426,6 +428,8 @@ test.describe('Delete Task E2E Tests (US-004)', () => {
       await page.click('.task-list__action-btn--delete');
       await page.click('.confirm-delete-btn');
 
+      await page.waitForTimeout(2000);
+
       // Should show empty state
       await expect(page.locator('.task-list__empty')).toBeVisible();
       await expect(page.locator('.task-list__empty-title')).toContainText('No tasks');
@@ -440,6 +444,9 @@ test.describe('Delete Task E2E Tests (US-004)', () => {
         deleteButton.click({ force: true }),
         deleteButton.click({ force: true }),
       ]);
+
+      // Await for modal
+      await page.waitForTimeout(300)
 
       // Should only show one modal
       await expect(page.locator('.delete-confirmation-modal')).toHaveCount(1);
