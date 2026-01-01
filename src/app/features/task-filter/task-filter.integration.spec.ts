@@ -6,6 +6,8 @@ import { vi } from 'vitest';
 import { TaskFilterTabsComponent } from '../../components/task-filter-tabs/task-filter-tabs.component';
 import { TaskListComponent } from '../../components/task-list/task-list.component';
 import { TaskService } from '../../shared/services/task.service';
+import { AuthService } from '../../shared/services/auth.service';
+import { SecurityService } from '../../shared/services/security.service';
 import { Task, TaskPriority, TaskStatus, TaskProject } from '../../shared/models/task.model';
 
 // Integration test wrapper for filter functionality
@@ -15,7 +17,6 @@ import { Task, TaskPriority, TaskStatus, TaskProject } from '../../shared/models
   template: `
     <div class="integration-test-container">
       <app-task-filter-tabs
-        [currentFilter]="currentFilter()"
         (filterChange)="onFilterChange($event)"
       ></app-task-filter-tabs>
       <app-task-list
@@ -38,10 +39,24 @@ class TaskFilterTestWrapper {
   currentFilter = signal<'all' | 'TODO' | 'IN_PROGRESS' | 'DONE'>('all');
   lastFilter: string | null = null;
   statusChangedEvent: { taskId: string; newStatus: TaskStatus } | null = null;
+  private filterTabsComponent: TaskFilterTabsComponent | null = null;
 
   onFilterChange(filter: 'all' | 'TODO' | 'IN_PROGRESS' | 'DONE'): void {
     this.currentFilter.set(filter);
     this.lastFilter = filter;
+  }
+
+  // Method to get reference to filter tabs component for testing
+  setFilterTabsComponent(component: TaskFilterTabsComponent): void {
+    this.filterTabsComponent = component;
+  }
+
+  // Method to programmatically set filter for testing
+  setFilter(filter: 'all' | 'TODO' | 'IN_PROGRESS' | 'DONE'): void {
+    if (this.filterTabsComponent) {
+      this.filterTabsComponent.currentFilter.set(filter);
+    }
+    this.currentFilter.set(filter);
   }
 
   onTaskStatusChanged(event: { taskId: string; newStatus: TaskStatus }): void {
@@ -118,9 +133,31 @@ describe('Task Filter Integration Tests - US-006', () => {
   ];
 
   beforeAll(async () => {
+    const mockAuthService = {
+      currentUser: vi.fn().mockReturnValue({
+        id: 'test-user-123',
+        email: 'test@example.com',
+        isAuthenticated: true,
+        name: 'Test User'
+      }),
+      requireAuthentication: vi.fn(),
+      getUserContext: vi.fn().mockReturnValue({ userId: 'test-user-123' }),
+      logSecurityEvent: vi.fn()
+    };
+
+    const mockSecurityService = {
+      validateRequest: vi.fn().mockReturnValue({ valid: true, threats: [] }),
+      checkRateLimit: vi.fn().mockReturnValue({ allowed: true, remaining: 100 }),
+      logSecurityEvent: vi.fn(),
+      getUserContext: vi.fn().mockReturnValue({ userId: 'test-user-123' })
+    };
+
     TestBed.configureTestingModule({
       imports: [CommonModule, TaskFilterTabsComponent, TaskListComponent, TaskFilterTestWrapper],
-      providers: [],
+      providers: [
+        { provide: AuthService, useValue: mockAuthService },
+        { provide: SecurityService, useValue: mockSecurityService }
+      ],
     });
 
     await TestBed.compileComponents();
@@ -129,9 +166,32 @@ describe('Task Filter Integration Tests - US-006', () => {
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
+    
+    const mockAuthService = {
+      currentUser: vi.fn().mockReturnValue({
+        id: 'test-user-123',
+        email: 'test@example.com',
+        isAuthenticated: true,
+        name: 'Test User'
+      }),
+      requireAuthentication: vi.fn(),
+      getUserContext: vi.fn().mockReturnValue({ userId: 'test-user-123' }),
+      logSecurityEvent: vi.fn()
+    };
+
+    const mockSecurityService = {
+      validateRequest: vi.fn().mockReturnValue({ valid: true, threats: [] }),
+      checkRateLimit: vi.fn().mockReturnValue({ allowed: true, remaining: 100 }),
+      logSecurityEvent: vi.fn(),
+      getUserContext: vi.fn().mockReturnValue({ userId: 'test-user-123' })
+    };
+
     await TestBed.configureTestingModule({
       imports: [CommonModule, TaskFilterTabsComponent, TaskListComponent, TaskFilterTestWrapper],
-      providers: [],
+      providers: [
+        { provide: AuthService, useValue: mockAuthService },
+        { provide: SecurityService, useValue: mockSecurityService }
+      ],
     }).compileComponents();
 
     taskService = TestBed.inject(TaskService);

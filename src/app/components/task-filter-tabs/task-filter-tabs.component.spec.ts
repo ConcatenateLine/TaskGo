@@ -18,7 +18,12 @@ describe('TaskFilterTabsComponent - US-006', () => {
 
   beforeEach(async () => {
     const taskServiceSpy = {
-      getTaskCounts: vi.fn(),
+      getTaskCounts: vi.fn().mockReturnValue({
+        todo: 2,
+        inProgress: 1,
+        done: 3,
+        total: 6,
+      }),
     };
 
     await TestBed.configureTestingModule({
@@ -26,9 +31,9 @@ describe('TaskFilterTabsComponent - US-006', () => {
       providers: [{ provide: TaskService, useValue: taskServiceSpy }],
     }).compileComponents();
 
+    taskService = TestBed.inject(TaskService);
     fixture = TestBed.createComponent(TaskFilterTabsComponent);
     component = fixture.componentInstance;
-    taskService = TestBed.inject(TaskService);
   });
 
   it('should create', () => {
@@ -92,15 +97,26 @@ describe('TaskFilterTabsComponent - US-006', () => {
     });
 
     it('should handle zero counts gracefully', () => {
-      taskService.getTaskCounts.mockReturnValue({
-        todo: 0,
+      // Create a new component instance with zero counts mock from the start
+      const zeroCountsSpy = {
+        getTaskCounts: vi.fn().mockReturnValue({
+          todo: 0,
         inProgress: 0,
         done: 0,
         total: 0,
-      });
-      fixture.detectChanges();
+        }),
+      };
 
-      const tabs = fixture.debugElement.queryAll(By.css('.task-filter-tabs__tab'));
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        imports: [CommonModule, TaskFilterTabsComponent],
+        providers: [{ provide: TaskService, useValue: zeroCountsSpy }],
+      }).compileComponents();
+
+      const zeroFixture = TestBed.createComponent(TaskFilterTabsComponent);
+      zeroFixture.detectChanges();
+
+      const tabs = zeroFixture.debugElement.queryAll(By.css('.task-filter-tabs__tab'));
       tabs.forEach((tab) => {
         expect(tab.nativeElement.textContent).toContain('0');
       });
@@ -334,9 +350,13 @@ describe('TaskFilterTabsComponent - US-006', () => {
         total: 6,
       });
 
+      // Initial detection to render the component
+      fixture.detectChanges();
+
       const tabs = fixture.debugElement.queryAll(By.css('.task-filter-tabs__tab'));
       const initialText = tabs[0].nativeElement.textContent;
 
+      // Additional detection cycles
       fixture.detectChanges();
       fixture.detectChanges();
 

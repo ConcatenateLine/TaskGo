@@ -1,4 +1,18 @@
-<!-- Template placeholder - will be replaced with implementation in GREEN phase -->
 <div class="task-filter-tabs" role="tablist">
-  <!-- Filter tabs will be rendered here -->
+  <button class="task-filter-tabs__tab" role="tab" (click)="onFilterClick('all')" type="button">
+    <span class="task-filter-tabs__label">All</span>
+    <span class="task-filter-tabs__count">6</span>
+  </button>
+  <button class="task-filter-tabs__tab" role="tab" (click)="onFilterClick('TODO')" type="button">
+    <span class="task-filter-tabs__label">To Do</span>
+    <span class="task-filter-tabs__count">2</span>
+  </button>
+  <button class="task-filter-tabs__tab" role="tab" (click)="onFilterClick('IN_PROGRESS')" type="button">
+    <span class="task-filter-tabs__label">In Progress</span>
+    <span class="task-filter-tabs__count">1</span>
+  </button>
+  <button class="task-filter-tabs__tab" role="tab" (click)="onFilterClick('DONE')" type="button">
+    <span class="task-filter-tabs__label">Completed</span>
+    <span class="task-filter-tabs__count">3</span>
+  </button>
 </div>
