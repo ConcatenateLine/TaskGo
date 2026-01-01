@@ -1,0 +1,110 @@
+<div class="task-status__content">
+  <!-- Status Badge -->
+  <div
+    class="task-status__badge"
+    [class.task-status__badge--todo]="currentStatus() === 'TODO'"
+    [class.task-status__badge--in-progress]="currentStatus() === 'IN_PROGRESS'"
+    [class.task-status__badge--done]="currentStatus() === 'DONE'"
+    [attr.aria-label]="getAriaLabelForStatus(currentStatus())"
+    [style.background-color]="getStatusColor(currentStatus())"
+  >
+    @if (currentStatus() === 'TODO') {
+      <span class="task-status__icon task-status__icon--todo">○</span>
+    } @else if (currentStatus() === 'IN_PROGRESS') {
+      <span class="task-status__icon task-status__icon--in-progress">◐</span>
+    } @else if (currentStatus() === 'DONE') {
+      <span class="task-status__icon task-status__icon--done">✓</span>
+    }
+    <span class="task-status__label">{{ getStatusLabel(currentStatus()) }}</span>
+  </div>
+
+    <!-- Status Change Controls -->
+    <div class="task-status__controls">
+      @if (!loading()) {
+        <!-- Previous Status Button -->
+        @if (canMovePrevious()) {
+          <button
+            class="task-status__btn task-status__btn--prev"
+            (click)="onPreviousClick()"
+            [attr.aria-label]="getAriaLabelForButton(previousStatus()!)"
+            [disabled]="loading()"
+            tabindex="0"
+          >
+            ← Back
+          </button>
+        }
+
+        <!-- Status Select Dropdown -->
+        @if (hasTransitions()) {
+          <select
+            class="task-status__select"
+            [attr.aria-label]="getAriaLabelForSelect()"
+            [disabled]="loading() || !hasTransitions()"
+            (change)="onSelectChange($event)"
+            tabindex="0"
+          >
+            <option value="">Change Status...</option>
+            @for (transition of availableTransitions(); track transition) {
+              <option [value]="transition">{{ getStatusDisplay(transition) }}</option>
+            }
+          </select>
+        }
+
+        <!-- Next Status Button -->
+        @if (canMoveNext()) {
+          <button
+            class="task-status__btn task-status__btn--next"
+            (click)="onNextClick()"
+            [attr.aria-label]="getAriaLabelForButton(nextStatus()!)"
+            [disabled]="loading()"
+            tabindex="0"
+          >
+            {{ getButtonLabel(nextStatus()!) }}
+          </button>
+        }
+      } @else {
+        <!-- Loading State -->
+        <div class="task-status__loading" role="status" aria-live="polite">
+          <span class="task-status__spinner"></span>
+          <span class="task-status__loading-text">Changing status...</span>
+        </div>
+      }
+    </div>
+
+    <!-- Error Message -->
+    @if (error()) {
+      <div class="task-status__error" role="alert" aria-live="assertive">
+        {{ error() }}
+      </div>
+    }
+
+    <!-- Task Counters -->
+    <div class="task-status__counters">
+      <div class="task-status__count task-status__count--todo" aria-label="To do tasks">
+        TODO: {{ taskCounts().todo }}
+      </div>
+      <div
+        class="task-status__count task-status__count--in-progress"
+        aria-label="In progress tasks"
+      >
+        IN PROGRESS: {{ taskCounts().inProgress }}
+      </div>
+      <div class="task-status__count task-status__count--done" aria-label="Done tasks">
+        DONE: {{ taskCounts().done }}
+      </div>
+      @if (taskCounts().total > 0) {
+        <div class="task-status__count task-status__count--total" aria-label="Total tasks">
+          Total: {{ taskCounts().total }}
+        </div>
+      }
+    </div>
+
+    <!-- Screen Reader Live Region -->
+    <div
+      class="task-status__live-region"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      style="position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden;"
+    ></div>
+  </div>
