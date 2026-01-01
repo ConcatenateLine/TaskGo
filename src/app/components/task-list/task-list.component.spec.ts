@@ -22,7 +22,16 @@ describe('TaskListComponent', () => {
     const taskServiceSpy = {
       getTasksByStatusAndProject: vi.fn(),
       getTaskCounts: vi.fn(),
-      initializeMockData: vi.fn()
+      initializeMockData: vi.fn(),
+      // Add missing methods that TaskStatusComponent needs
+      getTask: vi.fn(),
+      changeStatus: vi.fn(),
+      getStatusTransitions: vi.fn().mockImplementation((status: any) => {
+        if (status === 'TODO') return ['IN_PROGRESS'];
+        if (status === 'IN_PROGRESS') return ['TODO', 'DONE'];
+        if (status === 'DONE') return ['IN_PROGRESS'];
+        return [];
+      }),
     };
 
     mockTasks = [

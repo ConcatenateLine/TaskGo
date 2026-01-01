@@ -1,6 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { App } from './app';
+import { TaskService } from './shared/services/task.service';
+import { AuthService } from './shared/services/auth.service';
+import { SecurityService } from './shared/services/security.service';
 
 describe('App', () => {
   let fixture: any;
@@ -9,6 +12,11 @@ describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
+      providers: [
+        { provide: TaskService, useValue: { getTasks: () => [], initializeMockData: () => {}, getTasksByStatusAndProject: () => [], getTaskCounts: () => ({ todo: 0, inProgress: 0, done: 0, total: 0 }) } },
+        { provide: AuthService, useValue: { getUserContext: () => ({ userId: 'test' }), isAuthenticated: () => true, createAnonymousUser: () => () => {}, logSecurityEvent: () => {} } },
+        { provide: SecurityService, useValue: { checkRateLimit: () => ({ allowed: true }) } }
+      ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(App);
@@ -90,19 +98,30 @@ describe('App', () => {
       const appElement = fixture.nativeElement;
       const appHtml = appElement.innerHTML;
 
-      // Allow Angular's default styles but block potentially dangerous patterns
-      const allowedInlineStyles = [
-        // Style properties and RGB colors
-        /style\s*=\s*["'][^"']*(?:color|background-color|padding|margin|font-size|border-radius|font-weight)[^"']*["']/gi,
-        /style\s*=\s*["'][^"']*rgb\([^)]*\)[^"']*["']/gi,
-        /^<[_a-z][_a-z0-9-]*\s+[^>]*class="[^"]*"/i, // Allow class attributes
-        /^<[_a-z][_a-z0-9-]*\s+[^>]*_nghost-[a-z0-9-]+/i, // Allow Angular's _nghost attributes
-      ];
+      // First check if there are any inline styles at all
+      const hasAnyInlineStyles = /style\s*=/i.test(appHtml);
+      
+      if (hasAnyInlineStyles) {
+        // If there are inline styles, they must match allowed patterns
+        const allowedInlineStyles = [
+          // Style properties and RGB colors (including background-color for legitimate use)
+          /style\s*=\s*["'][^"']*(?:color|background-color|padding|margin|font-size|border-radius|font-weight)[^"']*["']/gi,
+          /style\s*=\s*["'][^"']*rgb\([^)]*\)[^"']*["']/gi,
+          // Allow Angular's style binding syntax for controlled properties
+          /\[style\.[^=]+\]=["'][^"']*["']/gi,
+        ];
 
-      // Check for dangerous inline styles and expressions (excluding background URLs from gradients)
-      const hasDangerousStyles = !allowedInlineStyles.some((pattern) => pattern.test(appHtml));
-
-      expect(hasDangerousStyles).toBe(false);
+        // Check if inline styles match allowed patterns
+        const hasAllowedStyles = allowedInlineStyles.some((pattern) => pattern.test(appHtml));
+        expect(hasAllowedStyles).toBe(true);
+        
+        // Ensure no dangerous patterns exist
+        expect(appHtml).not.toContain('expression(');
+        expect(appHtml).not.toMatch(/style\s*=\s*['"][^'"]*[:\s]url\(/i);
+      } else {
+        // No inline styles at all - this is ideal
+        expect(true).toBe(true);
+      }
       // Note: background: url() is used in CSS gradients and is legitimate
       expect(appHtml).not.toContain('expression(');
       expect(appHtml).not.toMatch(/style\s*=\s*['"][^'"]*[:\s]url\(/i);

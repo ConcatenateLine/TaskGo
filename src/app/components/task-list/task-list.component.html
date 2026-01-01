@@ -79,6 +79,9 @@
           {{ getStatusDisplay(task.status) }}
         </span>
       </div>
+
+      <!-- Task Status Component -->
+      <app-task-status [task]="task" (statusChange)="onTaskStatusChange($event)" />
     </header>
 
     @if (task.description) {

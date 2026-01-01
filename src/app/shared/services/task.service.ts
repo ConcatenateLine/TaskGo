@@ -452,6 +452,142 @@ export class TaskService {
     this.saveToEncryptedStorage();
   }
 
+  /**
+   * Get a single task by ID
+   */
+  getTask(id: string): Task | null {
+    try {
+      const tasks = this.tasks();
+      return tasks.find((task) => task.id === id) || null;
+    } catch (error) {
+      console.error('Error getting task:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get valid status transitions for a given status
+   * Only allows next or previous state (no jumping)
+   */
+  getStatusTransitions(status: TaskStatus): TaskStatus[] {
+    const validTransitions: Record<TaskStatus, TaskStatus[]> = {
+      TODO: ['IN_PROGRESS'],
+      IN_PROGRESS: ['TODO', 'DONE'],
+      DONE: ['IN_PROGRESS'],
+    };
+
+    return validTransitions[status] || [];
+  }
+
+  /**
+   * Validate if a status transition is allowed
+   */
+  private isValidTransition(currentStatus: TaskStatus, newStatus: TaskStatus): boolean {
+    const validTransitions = this.getStatusTransitions(currentStatus);
+    return validTransitions.includes(newStatus);
+  }
+
+  /**
+   * Validate status value to prevent injection
+   */
+  private isValidStatus(status: string): status is TaskStatus {
+    const validStatuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE'];
+    return validStatuses.includes(status as TaskStatus);
+  }
+
+  /**
+   * Change task status with validation
+   */
+  changeStatus(taskId: string, newStatus: TaskStatus): Task | null {
+    try {
+      // Check rate limiting
+      const rateLimit = this.securityService.checkRateLimit('changeStatus');
+      if (!rateLimit.allowed) {
+        throw new Error('Rate limit exceeded. Please try again later.');
+      }
+
+      // Require authentication
+      this.authService.requireAuthentication();
+
+      // Validate status input to prevent injection
+      if (!this.isValidStatus(newStatus)) {
+        throw new Error('Invalid status');
+      }
+
+      // Validate taskId
+      if (!taskId || typeof taskId !== 'string') {
+        return null;
+      }
+
+      // Check for attack patterns
+      const validation = this.securityService.validateRequest({ taskId });
+      if (!validation.valid) {
+        this.authService.logSecurityEvent({
+          type: 'XSS_ATTEMPT',
+          message: `Status change attack attempt detected: ${validation.threats.join(', ')}`,
+          timestamp: new Date(),
+          userId: this.authService.getUserContext()?.userId,
+        });
+        return null;
+      }
+
+      // Find task
+      const tasks = this.tasks();
+      const taskIndex = tasks.findIndex((task) => task.id === taskId);
+
+      if (taskIndex === -1) {
+        return null;
+      }
+
+      const currentTask = tasks[taskIndex];
+
+      // Validate task has updatedAt field
+      if (!currentTask || !currentTask.updatedAt) {
+        return null;
+      }
+
+      // Validate transition is allowed (only next or previous state)
+      if (!this.isValidTransition(currentTask.status, newStatus)) {
+        throw new Error('Invalid status transition');
+      }
+
+      // Update task status
+      const now = Date.now();
+      const updatedTask: Task = {
+        ...currentTask,
+        status: newStatus,
+        updatedAt: new Date(now),
+      };
+
+      // Update tasks signal
+      this.tasks.update((currentTasks) =>
+        currentTasks.map((task) => (task.id === taskId ? updatedTask : task))
+      );
+
+      // Save to encrypted storage
+      this.saveToEncryptedStorage();
+
+      // Log security event
+      this.authService.logSecurityEvent({
+        type: 'DATA_ACCESS',
+        message: `Task status changed: ${taskId} from ${currentTask.status} to ${newStatus}`,
+        timestamp: new Date(),
+        userId: this.authService.getUserContext()?.userId,
+      });
+
+      return updatedTask;
+    } catch (error: any) {
+      // Re-throw known errors (rate limit and invalid status)
+      if (error.message && (error.message.includes('Rate limit exceeded') || error.message.includes('Invalid status'))) {
+        throw error;
+      }
+
+      // Log unexpected errors and return null
+      console.error('Error changing task status:', error);
+      return null;
+    }
+  }
+
   private generateId(): string {
     return Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
   }

@@ -41,7 +41,15 @@ describe('Delete Task Integration Tests (US-004)', () => {
       deleteTask: vi.fn(),
       getTasks: vi.fn(),
       createTask: vi.fn(),
-      initializeMockData: vi.fn()
+      initializeMockData: vi.fn(),
+      getTask: vi.fn(),
+      changeStatus: vi.fn(),
+      getStatusTransitions: vi.fn().mockImplementation((status: any) => {
+        if (status === 'TODO') return ['IN_PROGRESS'];
+        if (status === 'IN_PROGRESS') return ['TODO', 'DONE'];
+        if (status === 'DONE') return ['IN_PROGRESS'];
+        return [];
+      }),
     };
 
     const validationServiceSpy = {
@@ -163,12 +171,13 @@ describe('Delete Task Integration Tests (US-004)', () => {
       fixture.detectChanges();
 
       // Step 2: Confirmation modal should appear
+      fixture.detectChanges(); // Allow modal to render
       const modal = fixture.debugElement.query(By.css('.delete-confirmation-modal'));
-      expect(modal).toBeTruthy(); // This will fail until implemented
+      expect(modal).toBeTruthy();
 
       // Step 3: Click confirm delete button
       const confirmButton = fixture.debugElement.query(By.css('.confirm-delete-btn'));
-      expect(confirmButton).toBeTruthy(); // This will fail until implemented
+      expect(confirmButton).toBeTruthy();
 
       confirmButton.nativeElement.click();
       fixture.detectChanges();
@@ -184,26 +193,31 @@ describe('Delete Task Integration Tests (US-004)', () => {
     });
 
     it('should cancel deletion when cancel button is clicked', async () => {
-      // This will fail until we implement complete delete flow
       const deleteButton = fixture.debugElement.query(
         By.css('.task-list__action-btn--delete')
       );
 
+      // Step 1: Click delete button
       deleteButton.nativeElement.click();
       fixture.detectChanges();
 
-      // Click cancel button
+      // Step 2: Confirmation modal should appear
+      fixture.detectChanges(); // Allow modal to render
+      const modal = fixture.debugElement.query(By.css('.delete-confirmation-modal'));
+      expect(modal).toBeTruthy();
+
+      // Step 3: Click cancel button
       const cancelButton = fixture.debugElement.query(By.css('.cancel-delete-btn'));
-      expect(cancelButton).toBeTruthy(); // This will fail until implemented
+      expect(cancelButton).toBeTruthy();
 
       cancelButton.nativeElement.click();
       fixture.detectChanges();
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Step 4: Modal should be closed
+      const modalAfterCancel = fixture.debugElement.query(By.css('.delete-confirmation-modal'));
+      expect(modalAfterCancel).toBeFalsy();
 
-      // Modal should close and service should not be called
-      const modal = fixture.debugElement.query(By.css('.delete-confirmation-modal'));
-      expect(modal).toBeFalsy(); // This will fail until implemented
+      // Step 5: Service should NOT be called
       expect(taskService.deleteTask).not.toHaveBeenCalled();
     });
 

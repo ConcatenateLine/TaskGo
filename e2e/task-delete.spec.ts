@@ -317,7 +317,7 @@ test.describe('Delete Task E2E Tests (US-004)', () => {
       await page.click('.confirm-delete-btn');
 
       await page.waitForTimeout(2000);
-
+      
       // Should show error message in app component (not task-list)
       await expect(page.locator('.app__error-message')).toBeVisible();
       await expect(page.locator('.app__error-message')).toContainText('Unable to delete task');

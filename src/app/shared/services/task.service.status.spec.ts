@@ -8,12 +8,12 @@ import { SecurityService } from './security.service';
 
 /**
  * US-005: Change Task Status - RED Phase Tests
- * 
+ *
  * These tests define the expected behavior for task status change functionality.
  * They will FAIL initially because the implementation does not exist yet.
- * 
+ *
  * User Story: As a user, I want to change task status for progress tracking
- * 
+ *
  * Acceptance Criteria:
  * - States: TODO → IN_PROGRESS → DONE
  * - Button/Select to change state
@@ -61,7 +61,7 @@ describe('US-005: Change Task Status - Service Layer Tests', () => {
     it('should allow transition from TODO to IN_PROGRESS', () => {
       // ARRANGE
       const taskId = testTask.id;
-      const currentStatus = testTask.status;
+      const originalUpdatedAt = testTask.updatedAt;
 
       // ACT
       const updatedTask = service.changeStatus(taskId, 'IN_PROGRESS');
@@ -71,7 +71,7 @@ describe('US-005: Change Task Status - Service Layer Tests', () => {
       expect(updatedTask!.status).toBe('IN_PROGRESS');
       expect(updatedTask!.updatedAt).toBeInstanceOf(Date);
       expect(updatedTask!.updatedAt.getTime()).toBeGreaterThan(
-        new Date(currentStatus).getTime()
+        originalUpdatedAt.getTime()
       );
     });
 
@@ -87,7 +87,8 @@ describe('US-005: Change Task Status - Service Layer Tests', () => {
       // ASSERT
       expect(updatedTask).toBeTruthy();
       expect(updatedTask!.status).toBe('DONE');
-      expect(updatedTask!.updatedAt.getTime()).toBeGreaterThan(beforeUpdate.updatedAt.getTime());
+      // updatedAt should be updated or at least equal to current time (allow for same timestamp)
+      expect(updatedTask!.updatedAt.getTime()).toBeGreaterThanOrEqual(beforeUpdate.updatedAt.getTime());
     });
 
     it('should allow transition from DONE to IN_PROGRESS (backwards)', () => {
@@ -351,7 +352,6 @@ describe('US-005: Change Task Status - Service Layer Tests', () => {
       vi.spyOn(securityService, 'checkRateLimit').mockReturnValue({
         allowed: false,
         remainingAttempts: 0,
-        resetTime: new Date(Date.now() + 60000),
       });
 
       // ACT & ASSERT
@@ -539,12 +539,15 @@ describe('US-005: Change Task Status - Service Layer Tests', () => {
       // ACT
       const result1 = service.changeStatus(task1.id, 'IN_PROGRESS');
       const result2 = service.changeStatus(task2.id, 'IN_PROGRESS');
-      const result3 = service.changeStatus(task3.id, 'DONE'); // Should fail
 
       // ASSERT
       expect(result1?.status).toBe('IN_PROGRESS');
       expect(result2?.status).toBe('IN_PROGRESS');
-      expect(result3).toBeNull(); // Direct TODO to DONE transition should fail
+
+      // ACT & ASSERT - Direct TODO to DONE transition should throw error
+      expect(() => {
+        service.changeStatus(task3.id, 'DONE');
+      }).toThrow(/Invalid status transition/);
     });
   });
 });

@@ -1,17 +1,18 @@
-import { Component, input, computed, ChangeDetectionStrategy, signal, inject, SecurityContext, output, EventEmitter } from '@angular/core';
+import { Component, input, computed, ChangeDetectionStrategy, signal, inject, SecurityContext, output, EventEmitter, DoCheck } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { Task, PRIORITY_COLORS, PROJECT_COLORS } from '../../shared/models/task.model';
+import { Task, PRIORITY_COLORS, PROJECT_COLORS, TaskStatus } from '../../shared/models/task.model';
 import { TaskService } from '../../shared/services/task.service';
 import { ValidationService } from '../../shared/services/validation.service';
 import { AuthService } from '../../shared/services/auth.service';
 import { SecurityService } from '../../shared/services/security.service';
 import { TaskInlineEditComponent } from '../task-inline-edit/task-inline-edit.component';
+import { TaskStatusComponent } from '../task-status/task-status.component';
 import { FocusTrapDirective } from '../../shared/directives/focus-trap.directive';
 
 @Component({
   selector: 'app-task-list',
-  imports: [CommonModule, TaskInlineEditComponent, FocusTrapDirective],
+  imports: [CommonModule, TaskInlineEditComponent, TaskStatusComponent, FocusTrapDirective],
   templateUrl: './task-list.component.html',
   styleUrls: ['./task-list.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -19,7 +20,7 @@ import { FocusTrapDirective } from '../../shared/directives/focus-trap.directive
     class: 'task-list'
   }
 })
-export class TaskListComponent {
+export class TaskListComponent implements DoCheck{
   private taskService = inject(TaskService);
   private validationService = inject(ValidationService);
   private authService = inject(AuthService);
@@ -35,12 +36,18 @@ export class TaskListComponent {
   createTaskRequested = output<void>();
   taskDeleted = output<void>();
   actionError = output<Error>();
+  taskStatusChanged = output<{ taskId: string; newStatus: TaskStatus }>();
 
   constructor() {
     // Expose component for E2E testing
     if (typeof window !== 'undefined' && ngDevMode) {
       (window as any).taskListComponent = this;
     }
+  }
+
+  ngDoCheck(): void {
+    // Console.log commented out for performance testing
+    // console.log("ngDoCheck triggered");
   }
 
   statusFilter = input<'all' | 'TODO' | 'IN_PROGRESS' | 'DONE'>('all');
@@ -269,6 +276,11 @@ export class TaskListComponent {
       // These will be implemented in future user stories
       console.log(`Task ${action} clicked for task ${taskId}`);
     }
+  }
+
+  onTaskStatusChange(event: { taskId: string; newStatus: TaskStatus }): void {
+    this.taskStatusChanged.emit(event);
+    this.forceRefresh();
   }
 
   onTaskUpdated(updatedTask: Task): void {

@@ -44,7 +44,16 @@ describe('TaskListComponent - Delete Functionality (US-004)', () => {
       getTaskCounts: vi.fn(),
       deleteTask: vi.fn(),
       getTasks: vi.fn(),
-      initializeMockData: vi.fn()
+      initializeMockData: vi.fn(),
+      // Add missing methods that TaskStatusComponent needs
+      getTask: vi.fn(),
+      changeStatus: vi.fn(),
+      getStatusTransitions: vi.fn().mockImplementation((status: any) => {
+        if (status === 'TODO') return ['IN_PROGRESS'];
+        if (status === 'IN_PROGRESS') return ['TODO', 'DONE'];
+        if (status === 'DONE') return ['IN_PROGRESS'];
+        return [];
+      }),
     };
 
     const validationServiceSpy = {
@@ -74,6 +83,9 @@ describe('TaskListComponent - Delete Functionality (US-004)', () => {
       done: 0,
       total: 1
     });
+
+    // Mock getTasks to return our task as well (some tests might use this)
+    taskServiceSpy.getTasks.mockReturnValue([mockTask]);
     validationServiceSpy.sanitizeForDisplay.mockImplementation((input: string) => input);
     sanitizerSpy.sanitize.mockReturnValue('sanitized-content');
     authServiceSpy.getUserContext.mockReturnValue({ userId: 'test-user' });
@@ -102,19 +114,15 @@ describe('TaskListComponent - Delete Functionality (US-004)', () => {
     authService = TestBed.inject(AuthService);
     securityService = TestBed.inject(SecurityService);
     sanitizer = TestBed.inject(DomSanitizer);
-
+    
+    // Set default filter values to ensure tasks are visible
+    fixture.componentRef.setInput('statusFilter', 'all');
+    fixture.componentRef.setInput('projectFilter', 'all');
+ 
     fixture.detectChanges();
 
-    // Wait a tick for the component to fully initialize
+    // Wait a tick for component to fully initialize
     await Promise.resolve();
-
-    // Check what the filtered tasks length is
-    console.log('Initial filtered tasks length:', component.filteredTasks().length);
-    console.log('Status filter value:', component.statusFilter());
-    console.log('Project filter value:', component.projectFilter());
-
-    // Also check if we can access the editingTaskId signal
-    console.log('Current editingTaskId:', (component as any).editingTaskId?.());
   });
 
   describe('Core Delete Functionality', () => {
@@ -122,13 +130,6 @@ describe('TaskListComponent - Delete Functionality (US-004)', () => {
       const deleteButtons = fixture.debugElement.queryAll(
         By.css('.task-list__action-btn--delete')
       );
-
-      // Debug: Let's see what's actually in the DOM
-      console.log('Delete buttons found:', deleteButtons.length);
-      console.log('Status filter:', component.statusFilter());
-      console.log('Project filter:', component.projectFilter());
-      console.log('Filtered tasks length:', component.filteredTasks().length);
-      console.log('DOM content:', fixture.debugElement.nativeElement.outerHTML);
 
       // Check if we have delete buttons (they should exist when not in edit mode)
       expect(deleteButtons.length).toBeGreaterThan(0);

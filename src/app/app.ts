@@ -1,4 +1,4 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TaskListComponent } from './components/task-list/task-list.component';
 import { TaskCreationFormComponent } from './components/task-creation-form/task-creation-form.component';
@@ -19,26 +19,24 @@ export class App implements OnInit {
   protected readonly successMessage = signal<string | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
 
-  constructor(
-    private taskService: TaskService,
-    private authService: AuthService,
-    private securityService: SecurityService
-  ) {
+  private taskService = inject(TaskService);
+  private authService = inject(AuthService);
+  private securityService = inject(SecurityService);
+
+  ngOnInit(): void {
     if (ngDevMode) {
       // Angular flag for dev builds
       (window as any).taskService = this.taskService;
     }
-  }
-
-  ngOnInit() {
+    
     // Initialize authentication for development
     if (!this.authService.isAuthenticated()) {
       this.authService.createAnonymousUser();
     }
-
+    
     // Initialize with mock data for US-001
     this.taskService.initializeMockData();
-
+    
     // Log application start
     this.authService.logSecurityEvent({
       type: 'DATA_ACCESS',
@@ -48,37 +46,21 @@ export class App implements OnInit {
     });
   }
 
-  /**
-   * Handle errors gracefully without exposing sensitive information
-   */
-  handleError(error: Error): void {
-    // Log security event
-    this.authService.logSecurityEvent({
-      type: 'VALIDATION_FAILURE',
-      message: 'Application error occurred',
-      timestamp: new Date(),
-      userId: this.authService.getUserContext()?.userId
-    });
-
-    // Don't expose detailed error information to user
-    console.error('An error occurred:', error.message);
-  }
-
   onCreateTaskRequested(): void {
     this.showTaskCreation.set(true);
   }
 
   onTaskCreated(task: Task): void {
     console.log('Task created:', task);
-
+    
     // Show success message globally
     this.successMessage.set('Task created successfully');
-
+    
     // Clear success message after 3 seconds
     setTimeout(() => {
       this.successMessage.set(null);
     }, 3000);
-
+    
     // Switch back to task list immediately
     this.showTaskCreation.set(false);
   }
@@ -90,7 +72,7 @@ export class App implements OnInit {
   onTaskDeleted(): void {
     // Show success message globally
     this.successMessage.set('Task deleted successfully');
-
+    
     // Clear success message after 3 seconds
     setTimeout(() => {
       this.successMessage.set(null);
@@ -100,7 +82,7 @@ export class App implements OnInit {
   onActionError(error: Error): void {
     console.error('An error occurred:', error.message);
     this.errorMessage.set(error.message);
-
+    
     // Clear error message after 3 seconds
     setTimeout(() => {
       this.errorMessage.set(null);
