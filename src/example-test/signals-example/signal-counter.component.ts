@@ -14,7 +14,7 @@ export interface User {
   template: `
     <div class="signal-demo">
       <h2>{{ title() }} - Angular 21 Signals Demo</h2>
-      
+
       <!-- Input/Output Example -->
       <section class="input-output">
         <h3>Angular 21 Input/Output</h3>
@@ -24,7 +24,7 @@ export interface User {
         <p>Disabled: {{ disabled() ? 'Yes' : 'No' }}</p>
         <p>Current Title: {{ title() }}</p>
       </section>
-      
+
       <!-- Basic Signal Example -->
       <section class="basic-signal">
         <h3>Basic Signal</h3>
@@ -47,8 +47,8 @@ export interface User {
       <section class="object-signal">
         <h3>Object Signal</h3>
         <div *ngIf="user(); else noUser">
-          <p>User: {{ user().name }} ({{ user().email }})</p>
-          <p>User ID: {{ user().id }}</p>
+          <p>User: {{ user()?.name }} ({{ user()?.email }})</p>
+          <p>User ID: {{ user()?.id }}</p>
         </div>
         <ng-template #noUser>
           <p>No user selected</p>
@@ -164,7 +164,7 @@ export class SignalCounterComponent {
   stepSize = input<number>(1);
   disabled = input<boolean>(false);
   title = input<string>('Signal Counter');
-  
+
   // Angular 21 Output functions
   countChanged = output<number>();
   userSelected = output<User>();
@@ -173,7 +173,7 @@ export class SignalCounterComponent {
 
   // Basic signals
   count = signal(0);
-  
+
   // Computed signals
   doubleCount = computed(() => this.count() * 2);
   isEven = computed(() => this.count() % 2 === 0);
@@ -185,7 +185,7 @@ export class SignalCounterComponent {
     if (currentCount < 100) return 'Medium';
     return 'Large';
   });
-  
+
   message = computed(() => {
     const status = this.countStatus();
     const even = this.isEven();
@@ -204,16 +204,16 @@ export class SignalCounterComponent {
   constructor() {
     // Initialize count from input signal
     this.count.set(this.initialCount());
-    
+
     // Effect that runs whenever count changes
     effect(() => {
       const currentCount = this.count();
       const timestamp = new Date().toLocaleTimeString();
       this.addLog(`[${timestamp}] Count changed to: ${currentCount}`);
-      
+
       // Emit count changed output
       this.countChanged.emit(currentCount);
-      
+
       // Check if max count reached
       if (currentCount >= this.maxCount()) {
         this.maxCountReached.emit();
@@ -239,17 +239,17 @@ export class SignalCounterComponent {
   // Basic signal methods
   increment(): void {
     if (this.disabled()) return;
-    
+
     const step = this.stepSize();
     const newCount = this.count() + step;
     const maxCount = this.maxCount();
-    
+
     this.count.set(Math.min(newCount, maxCount));
   }
 
   decrement(): void {
     if (this.disabled()) return;
-    
+
     const step = this.stepSize();
     this.count.update(value => Math.max(value - step, 0));
   }
@@ -292,7 +292,7 @@ export class SignalCounterComponent {
   }
 
   removeLastItem(): void {
-    this.items.update(currentItems => 
+    this.items.update(currentItems =>
       currentItems.slice(0, -1)
     );
   }
@@ -302,7 +302,7 @@ export class SignalCounterComponent {
   }
 
   // Computed signal for total items
-  totalItems = computed(() => 
+  totalItems = computed(() =>
     this.items().reduce((sum, item) => sum + item.quantity, 0)
   );
 
