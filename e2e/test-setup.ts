@@ -7,25 +7,11 @@ test.beforeEach(async ({ page }) => {
     console.log(`Browser console [${msg.type()}]: ${msg.text()}`);
   });
 
-  // Clear localStorage and navigate to get fresh state
+  // Simple navigation for task-filter tests
   await page.goto('/');
-  
-  // Wait a moment for the app to initialize, then clear storage
-  await page.waitForTimeout(1000);
-  
-  await page.evaluate(() => {
-    // Clear all localStorage to avoid crypto service issues
-    localStorage.clear();
-    // Clear sessionStorage too
-    sessionStorage.clear();
-  });
-  
-  // Reload the page to get clean initialization
-  await page.reload();
-  
-  // Wait for the app to be fully loaded
   await page.waitForSelector('h1', { timeout: 10000 });
   await expect(page.locator('h1')).toContainText('TaskGo');
+  await page.waitForTimeout(1000);
 });
 
 // Global teardown

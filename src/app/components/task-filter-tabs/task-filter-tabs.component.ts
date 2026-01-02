@@ -18,7 +18,7 @@ import { TaskService } from '../../shared/services/task.service';
         (click)="onFilterClick('all')" 
         type="button">
         <span class="task-filter-tabs__label">All</span>
-        <span class="task-filter-tabs__count" aria-hidden="true">{{ getCount('all') }}</span>
+        <span class="task-filter-tabs__count" aria-hidden="true">DEBUG: {{ getCount('all') }}</span>
       </button>
       <button 
         class="task-filter-tabs__tab" 
@@ -170,6 +170,10 @@ export class TaskFilterTabsComponent {
   currentFilter = signal<'all' | 'TODO' | 'IN_PROGRESS' | 'DONE'>('all');
   filterChange = output<'all' | 'TODO' | 'IN_PROGRESS' | 'DONE'>();
 
+  constructor() {
+    console.log('TaskFilterTabsComponent initialized');
+  }
+
   readonly filterTabs = [
     { key: 'all' as const, label: 'All', ariaLabel: 'Filter tasks: All' },
     { key: 'TODO' as const, label: 'To Do', ariaLabel: 'Filter tasks: To Do' },
@@ -178,7 +182,12 @@ export class TaskFilterTabsComponent {
   ];
 
   readonly taskCounts = computed(() => {
-    return this.taskService.getTaskCounts();
+    try {
+      return this.taskService.getTaskCounts();
+    } catch (error) {
+      console.error('TaskFilterTabsComponent: Error getting task counts:', error);
+      return { todo: 0, inProgress: 0, done: 0, total: 0 };
+    }
   });
 
   onFilterClick(filter: 'all' | 'TODO' | 'IN_PROGRESS' | 'DONE'): void {

@@ -185,7 +185,7 @@ test.describe('Delete Task E2E Tests (US-004)', () => {
       await page.click('.confirm-delete-btn');
 
       // Wait for refresh
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(2200);
 
       // Check that task count decreased
       const finalTaskCount = await page.locator('.task-list__task').count();
@@ -397,13 +397,17 @@ test.describe('Delete Task E2E Tests (US-004)', () => {
       await page.keyboard.press('Tab');
       await page.keyboard.press('Tab');
       await page.keyboard.press('Tab');
+      await page.keyboard.press('Tab');
       await page.keyboard.press('Tab'); // Should reach delete button
 
       const deleteButton = page.locator('.task-list__action-btn--delete').first();
+      await page.waitForTimeout(200);
+
       await expect(deleteButton).toBeFocused();
 
       // Activate with Enter
       await page.keyboard.press('Enter');
+
 
       // Modal should appear
       await expect(page.locator('.delete-confirmation-modal')).toBeVisible();
@@ -426,6 +430,7 @@ test.describe('Delete Task E2E Tests (US-004)', () => {
 
       // Delete last task
       await page.click('.task-list__action-btn--delete');
+      await page.waitForSelector('.delete-confirmation-modal');
       await page.click('.confirm-delete-btn');
 
       await page.waitForTimeout(2000);

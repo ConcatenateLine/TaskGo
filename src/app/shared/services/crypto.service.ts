@@ -9,23 +9,39 @@ export class CryptoService {
   private encryptionKey: string = '';
 
   constructor() {
-    this.generateSessionKey();
+    this.loadOrGenerateKey();
   }
 
   /**
    * Generate a new session key (for testing session uniqueness)
    */
   regenerateSessionKey(): void {
-    this.generateSessionKey();
+    this.generateNewKey();
+    // Clear existing encrypted data when regenerating key
+    this.clearTaskStorage();
   }
 
   /**
-   * Generate a session-specific encryption key
+   * Load existing key or generate new one
    */
-  private generateSessionKey(): void {
+  private loadOrGenerateKey(): void {
+    const storedKey = localStorage.getItem('taskgo_encryption_key');
+    if (storedKey) {
+      this.encryptionKey = storedKey;
+    } else {
+      this.generateNewKey();
+    }
+  }
+
+  /**
+   * Generate and store a new encryption key
+   */
+  private generateNewKey(): void {
     const timestamp = Date.now().toString();
     const random = Math.random().toString(36).substring(2);
     this.encryptionKey = btoa(`${timestamp}_${random}_${this.ENCRYPTION_VERSION}`);
+    // Store the key for persistence across sessions
+    localStorage.setItem('taskgo_encryption_key', this.encryptionKey);
   }
 
   /**

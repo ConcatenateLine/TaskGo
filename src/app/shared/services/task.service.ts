@@ -30,7 +30,8 @@ export class TaskService {
       }
     } catch (error) {
       console.warn('Failed to load tasks from encrypted storage:', error);
-      // Start with empty array if storage is corrupted
+      // Clear corrupted data and start fresh
+      this.cryptoService.clearTaskStorage();
       this.tasks.set([]);
     }
   }
