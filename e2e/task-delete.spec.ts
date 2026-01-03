@@ -398,6 +398,7 @@ test.describe('Delete Task E2E Tests (US-004)', () => {
       await page.keyboard.press('Tab');
       await page.keyboard.press('Tab');
       await page.keyboard.press('Tab');
+      await page.keyboard.press('Tab');
       await page.keyboard.press('Tab'); // Should reach delete button
 
       const deleteButton = page.locator('.task-list__action-btn--delete').first();

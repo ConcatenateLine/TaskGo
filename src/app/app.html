@@ -27,7 +27,7 @@
   } @else {
   <app-task-filter-tabs (filterChange)="onFilterChange($event)" />
   <app-task-project-filter (filterChange)="onProjectFilterChange($event)" />
-   <app-task-list [statusFilter]="currentFilter()" (createTaskRequested)="onCreateTaskRequested()" (taskDeleted)="onTaskDeleted()"
-     (actionError)="onActionError($event)" />
+   <app-task-list [statusFilter]="currentFilter()" [projectFilter]="currentProjectFilter()" (createTaskRequested)="onCreateTaskRequested()" (taskDeleted)="onTaskDeleted()"
+      (actionError)="onActionError($event)" />
   }
 </main>
