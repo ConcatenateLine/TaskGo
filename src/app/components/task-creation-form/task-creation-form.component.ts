@@ -1,7 +1,7 @@
 import { Component, inject, signal, output, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Task, TaskPriority } from '../../shared/models/task.model';
+import { Task, TaskPriority, TaskProject } from '../../shared/models/task.model';
 import { TaskService } from '../../shared/services/task.service';
 import { ValidationService } from '../../shared/services/validation.service';
 import { AuthService } from '../../shared/services/auth.service';
@@ -33,6 +33,7 @@ export class TaskCreationFormComponent {
   isSubmitting = signal(false);
   error = signal<string | null>(null);
   readonly priorities: TaskPriority[] = ['low', 'medium', 'high'];
+  readonly projects: TaskProject[] = ['Personal', 'Work', 'Study', 'General'];
 
   taskCreated = output<Task>();
   cancelled = output<void>();
@@ -41,7 +42,8 @@ export class TaskCreationFormComponent {
     this.taskForm = this.formBuilder.group({
       title: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(100)]],
       description: ['', [Validators.maxLength(500)]],
-      priority: ['medium', Validators.required]
+      priority: ['medium', Validators.required],
+      project: ['General', Validators.required]
     });
   }
 
@@ -63,7 +65,7 @@ export class TaskCreationFormComponent {
         description: formValue.description || undefined,
         priority: formValue.priority,
         status: 'TODO' as const,
-        project: 'General' as const
+        project: formValue.project || 'General' as const
       };
 
       // Validate title
@@ -135,7 +137,8 @@ export class TaskCreationFormComponent {
     this.taskForm.reset({
       title: '',
       description: '',
-      priority: 'medium'
+      priority: 'medium',
+      project: 'General'
     });
     this.error.set(null);
   }

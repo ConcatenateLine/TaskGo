@@ -69,7 +69,7 @@
         <!-- Project Badge -->
         <span
           class="task-list__badge task-list__badge--project task-list__badge--project-{{ task.project.toLowerCase() }}"
-          [class]="getProjectBadgeClasses(task.project)" aria-label="Project: {{ task.project }}">
+          [class]="getProjectBadgeClasses(task.project)" aria-label="Project: {{ task.project }}" role="badge">
           {{ task.project }}
         </span>
 

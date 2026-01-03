@@ -42,8 +42,8 @@ describe('TaskService - US-007: Project Handling', () => {
         {
           provide: ValidationService,
           useValue: {
-            validateTaskTitle: vi.fn().mockReturnValue({ isValid: true, sanitized: 'Sanitized Title' }),
-            validateTaskDescription: vi.fn().mockReturnValue({ isValid: true, sanitized: 'Sanitized Description' }),
+            validateTaskTitle: vi.fn().mockImplementation((title: string) => ({ isValid: true, sanitized: title })),
+            validateTaskDescription: vi.fn().mockImplementation((desc: string) => ({ isValid: true, sanitized: desc })),
             validateCSP: vi.fn().mockReturnValue({ isValid: true, violations: [] }),
             sanitizeForDisplay: vi.fn((text: string) => text)
           }
@@ -304,9 +304,9 @@ describe('TaskService - US-007: Project Handling', () => {
 
       expect(cryptoService.setItem).toHaveBeenCalledWith(
         'test_key',
-        expect.arrayContaining(
+        expect.arrayContaining([
           expect.objectContaining({ project: 'Work' })
-        )
+        ])
       );
     });
 
@@ -331,7 +331,14 @@ describe('TaskService - US-007: Project Handling', () => {
   describe('updateTask with Project', () => {
     beforeEach(() => {
       taskService.clearTasks();
-      taskService.createTask(mockTaskData);
+      const createdTask = taskService.createTask({
+        title: mockTaskData.title,
+        description: mockTaskData.description,
+        priority: mockTaskData.priority,
+        status: mockTaskData.status,
+        project: mockTaskData.project
+      });
+      mockTaskData.id = createdTask.id;
     });
 
     it('should update task project from General to Personal', () => {

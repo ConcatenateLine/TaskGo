@@ -123,7 +123,7 @@
           for="task-project-{{ task()?.id }}" 
           class="task-inline-edit__label"
         >
-          Project
+          Project <span class="task-inline-edit__required">*</span>
         </label>
         <select
           id="task-project-{{ task()?.id }}"
@@ -131,11 +131,10 @@
           name="project"
           formControlName="project"
           aria-label="Select project"
+          aria-required="true"
         >
           @for (project of projectOptions; track project) {
-            <option [value]="project">
-              {{ project }}
-            </option>
+            <option [value]="project">{{ project }}</option>
           }
         </select>
       </div>

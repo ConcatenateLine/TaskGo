@@ -29,13 +29,13 @@ describe('TaskInlineEditComponent - US-007: Project Field', () => {
         if (!title) {
           return { isValid: false, error: 'Title is required' };
         }
-        return { isValid: true };
+        return { isValid: true, sanitized: title };
       }),
       validateTaskDescription: vi.fn().mockImplementation((description: string) => {
         if (!description) {
-          return { isValid: true };
+          return { isValid: true, sanitized: description };
         }
-        return { isValid: true };
+        return { isValid: true, sanitized: description };
       }),
       sanitizeForDisplay: vi.fn().mockImplementation((value: string) => value || '')
     };
@@ -90,6 +90,7 @@ describe('TaskInlineEditComponent - US-007: Project Field', () => {
     authService = TestBed.inject(AuthService);
     securityService = TestBed.inject(SecurityService);
 
+    // Set task input and trigger change detection
     fixture.componentRef.setInput("task", mockTask);
     fixture.detectChanges();
   });
@@ -100,7 +101,7 @@ describe('TaskInlineEditComponent - US-007: Project Field', () => {
       expect(component.editForm.contains('project')).toBe(true);
     });
 
-    it('should populate project field with current task project', () => {
+    it('should populate project field with current task project', async () => {
       expect(component.editForm.value.project).toBe(mockTask.project);
     });
 
@@ -417,6 +418,9 @@ describe('TaskInlineEditComponent - US-007: Project Field', () => {
 
   describe('Security - Project Field', () => {
     it('should validate project value through security service', () => {
+      // Set up mock return value for this test
+      taskService.updateTask.mockReturnValue({ ...mockTask, project: 'Work', updatedAt: new Date() });
+      
       component.editForm.patchValue({
         title: 'Valid Title',
         project: 'Work'

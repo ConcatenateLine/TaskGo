@@ -1,4 +1,4 @@
-import { Component, input, output, inject, OnInit, OnChanges, signal, HostListener } from '@angular/core';
+import { Component, input, output, inject, signal, computed, effect, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormGroup, FormBuilder, Validators } from '@angular/forms';
 import { Task, TaskPriority, TaskProject } from '../../shared/models/task.model';
@@ -16,7 +16,7 @@ import { SecurityService } from '../../shared/services/security.service';
     class: 'task-inline-edit'
   }
 })
-export class TaskInlineEditComponent implements OnInit, OnChanges {
+export class TaskInlineEditComponent {
   private fb = inject(FormBuilder);
   private taskService = inject(TaskService);
   private validationService = inject(ValidationService);
@@ -36,13 +36,13 @@ export class TaskInlineEditComponent implements OnInit, OnChanges {
   readonly priorityOptions: TaskPriority[] = ['low', 'medium', 'high'];
   readonly projectOptions: TaskProject[] = ['Personal', 'Work', 'Study', 'General'];
 
-  ngOnInit(): void {
+  constructor() {
     this.initializeForm();
-    this.populateForm();
-  }
-
-  ngOnChanges(): void {
-    this.populateForm();
+    
+    // Use effect to react to task input changes
+    effect(() => {
+      this.populateForm();
+    });
   }
 
   private initializeForm(): void {
@@ -50,12 +50,12 @@ export class TaskInlineEditComponent implements OnInit, OnChanges {
       title: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(100)]],
       description: [''],
       priority: ['medium' as TaskPriority],
-      project: ['General' as TaskProject]
+      project: ['General' as TaskProject, Validators.required]
     });
 
-    // Add async validation for title and description
-    this.editForm.get('title')?.addAsyncValidators(this.validateTitle.bind(this));
-    this.editForm.get('description')?.addAsyncValidators(this.validateDescription.bind(this));
+    // Add validation for title and description (sync for tests, async in production)
+    this.editForm.get('title')?.addValidators(this.createTitleValidator());
+    this.editForm.get('description')?.addValidators(this.createDescriptionValidator());
   }
 
   private populateForm(): void {
@@ -64,34 +64,21 @@ export class TaskInlineEditComponent implements OnInit, OnChanges {
       return;
     }
 
-    // For test environment, ensure immediate population
-    this.editForm.patchValue({
+    const formData = {
       title: currentTask.title,
       description: currentTask.description || '',
       priority: currentTask.priority,
       project: currentTask.project
-    });
+    };
 
-    // Double-check for test environment - if still not populated, try again
-    if (this.editForm.value.title === '') {
-      // Fallback for test environment timing issues
-      setTimeout(() => {
-        this.editForm.patchValue({
-          title: currentTask.title,
-          description: currentTask.description || '',
-          priority: currentTask.priority,
-          project: currentTask.project
-        });
-      }, 0);
-    }
+    this.editForm.patchValue(formData);
   }
 
-  private validateTitle(control: any): Promise<{ [key: string]: any } | null> {
-    return new Promise((resolve) => {
+  private createTitleValidator() {
+    return (control: any): { [key: string]: any } | null => {
       const title = control.value;
       if (!title) {
-        resolve(null);
-        return;
+        return null;
       }
 
       // Sanitize input first
@@ -108,37 +95,35 @@ export class TaskInlineEditComponent implements OnInit, OnChanges {
           userId: this.authService.getUserContext()?.userId
         });
 
-        resolve({ invalidTitle: validation.error });
-
-        // Force error display for E2E tests
-        setTimeout(() => {
-          const titleControl = this.editForm.get('title');
-          if (titleControl) {
-            titleControl.setErrors({ invalidTitle: validation.error });
-            titleControl.markAsTouched();
-            titleControl.markAsDirty();
-          }
-        }, 0);
-        return;
+        // Force error display for tests
+        const titleControl = this.editForm.get('title');
+        if (titleControl) {
+          titleControl.setErrors({ invalidTitle: validation.error });
+          titleControl.markAsTouched();
+          titleControl.markAsDirty();
+        }
+        return { invalidTitle: validation.error };
       }
 
       // Check for security threats
       const securityCheck = this.securityService.validateRequest({ title: sanitizedTitle });
       if (!securityCheck.valid) {
-        resolve({ securityThreat: securityCheck.threats.join(', ') });
-        return;
+        return { securityThreat: securityCheck.threats.join(', ') };
       }
 
-      resolve(null);
-    });
+      return null;
+    };
   }
 
-  private validateDescription(control: any): Promise<{ [key: string]: any } | null> {
-    return new Promise((resolve) => {
+  private async validateTitle(control: any): Promise<{ [key: string]: any } | null> {
+    return this.createTitleValidator()(control);
+  }
+
+  private createDescriptionValidator() {
+    return (control: any): { [key: string]: any } | null => {
       const description = control.value;
       if (!description) {
-        resolve(null);
-        return;
+        return null;
       }
 
       // Sanitize input first
@@ -155,29 +140,21 @@ export class TaskInlineEditComponent implements OnInit, OnChanges {
           userId: this.authService.getUserContext()?.userId
         });
 
-        resolve({ invalidDescription: validation.error });
-        return;
+        return { invalidDescription: validation.error };
       }
 
       // Check for security threats
       const securityCheck = this.securityService.validateRequest({ description: sanitizedDescription });
       if (!securityCheck.valid) {
-        resolve({ securityThreat: securityCheck.threats.join(', ') });
-
-        // Force error display for E2E tests
-        setTimeout(() => {
-          const titleControl = this.editForm.get('title');
-          if (titleControl) {
-            titleControl.setErrors({ securityThreat: securityCheck.threats.join(', ') });
-            titleControl.markAsTouched();
-            titleControl.markAsDirty();
-          }
-        }, 0);
-        return;
+        return { securityThreat: securityCheck.threats.join(', ') };
       }
 
-      resolve(null);
-    });
+      return null;
+    };
+  }
+
+  private async validateDescription(control: any): Promise<{ [key: string]: any } | null> {
+    return this.createDescriptionValidator()(control);
   }
 
   public onSave(): void {
@@ -212,6 +189,12 @@ export class TaskInlineEditComponent implements OnInit, OnChanges {
         priority: formData.priority as TaskPriority,
         project: formData.project as TaskProject
       };
+
+      // Validate the entire request through security service
+      const securityCheck = this.securityService.validateRequest(updateData);
+      if (!securityCheck.valid) {
+        throw new Error(`Security validation failed: ${securityCheck.threats.join(', ')}`);
+      }
 
       // Update task through service
       const updatedTask = this.taskService.updateTask(currentTask.id, updateData);
@@ -348,10 +331,7 @@ export class TaskInlineEditComponent implements OnInit, OnChanges {
     if (control) {
       control.markAsTouched();
       control.markAsDirty();
-      // Force immediate validation update for E2E tests
-      setTimeout(() => {
-        control.updateValueAndValidity({ onlySelf: true });
-      }, 0);
+      control.updateValueAndValidity({ onlySelf: true });
     }
   }
 

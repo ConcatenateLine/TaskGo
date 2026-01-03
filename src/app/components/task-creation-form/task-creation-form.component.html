@@ -89,6 +89,36 @@
       }
     </div>
 
+    <!-- Project Field -->
+    <div class="task-creation-form__field">
+      <label for="project" class="task-creation-form__label">
+        Project <span class="task-creation-form__required">*</span>
+      </label>
+      <select
+        id="project"
+        formControlName="project"
+        class="task-creation-form__select"
+        aria-label="Select project"
+        aria-required="true"
+        aria-describedby="project-error"
+        [class.task-creation-form__select--invalid]="taskForm.get('project')?.invalid && taskForm.get('project')?.touched"
+      >
+        @for (project of projects; track project) {
+          <option [value]="project" class="task-creation-form__option">
+            {{ project }}
+          </option>
+        }
+      </select>
+      @if (taskForm.get('project')?.invalid && taskForm.get('project')?.touched) {
+        <div
+          id="project-error"
+          class="task-creation-form__error"
+        >
+          Project is required
+        </div>
+      }
+    </div>
+
     <!-- Error Message -->
     @if (error()) {
       <div
