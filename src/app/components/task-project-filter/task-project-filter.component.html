@@ -1,0 +1,12 @@
+<select 
+  class="task-project-filter__select"
+  [value]="currentProjectFilter"
+  (change)="onProjectChange($event)"
+  aria-label="Filter tasks by project"
+  tabindex="0">
+  <option value="all">All projects</option>
+  <option value="Personal">Personal</option>
+  <option value="Work">Work</option>
+  <option value="Study">Study</option>
+  <option value="General">General</option>
+</select>

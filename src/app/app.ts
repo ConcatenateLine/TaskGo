@@ -3,14 +3,15 @@ import { CommonModule } from '@angular/common';
 import { TaskListComponent } from './components/task-list/task-list.component';
 import { TaskCreationFormComponent } from './components/task-creation-form/task-creation-form.component';
 import { TaskFilterTabsComponent } from './components/task-filter-tabs/task-filter-tabs.component';
+import { TaskProjectFilterComponent } from './components/task-project-filter/task-project-filter.component';
 import { TaskService } from './shared/services/task.service';
 import { AuthService } from './shared/services/auth.service';
 import { SecurityService } from './shared/services/security.service';
-import { Task } from './shared/models/task.model';
+import { Task, TaskProject } from './shared/models/task.model';
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, TaskListComponent, TaskCreationFormComponent, TaskFilterTabsComponent],
+  imports: [CommonModule, TaskListComponent, TaskCreationFormComponent, TaskFilterTabsComponent, TaskProjectFilterComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
@@ -20,6 +21,7 @@ export class App implements OnInit {
   protected readonly successMessage = signal<string | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly currentFilter = signal<'all' | 'TODO' | 'IN_PROGRESS' | 'DONE'>('all');
+  protected readonly currentProjectFilter = signal<TaskProject | 'all'>('all');
 
   private taskService = inject(TaskService);
   private authService = inject(AuthService);
@@ -93,6 +95,10 @@ export class App implements OnInit {
 
   onFilterChange(filter: 'all' | 'TODO' | 'IN_PROGRESS' | 'DONE'): void {
     this.currentFilter.set(filter);
+  }
+
+  onProjectFilterChange(project: TaskProject | 'all'): void {
+    this.currentProjectFilter.set(project);
   }
 
   /**

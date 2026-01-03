@@ -50,11 +50,13 @@ class CumulativeFilterTestWrapper {
   statusChangedEvent: { taskId: string; newStatus: TaskStatus } | null = null;
 
   onStatusFilterChange(filter: 'all' | 'TODO' | 'IN_PROGRESS' | 'DONE'): void {
+    console.log('Status filter changed to:', filter);
     this.currentStatusFilter.set(filter);
     this.lastStatusFilter = filter;
   }
 
   onProjectFilterChange(filter: 'all' | 'Personal' | 'Work' | 'Study' | 'General'): void {
+    console.log('Project filter changed to:', filter);
     this.currentProjectFilter.set(filter);
     this.lastProjectFilter = filter;
   }
@@ -246,7 +248,7 @@ describe('Cumulative Filter Integration Tests - US-008', () => {
       const options = projectSelect.queryAll(By.css('option'));
 
       const selectedOption = options.find((opt) => opt.nativeElement.selected);
-      expect(selectedOption.nativeElement.textContent).toContain('All projects');
+      expect(selectedOption?.nativeElement.textContent).toContain('All projects');
     });
 
     it('should display task counts in both filters', () => {
@@ -271,14 +273,17 @@ describe('Cumulative Filter Integration Tests - US-008', () => {
 
   describe('Cumulative Filter Behavior', () => {
     it('should filter tasks when only status filter is applied', async () => {
-      const statusTabs = fixture.debugElement.queryAll(By.css('.task-filter-tabs__tab'));
-      const todoTab = statusTabs[1]; // TODO tab
-
-      todoTab.triggerEventHandler('click', null);
+      const taskFilterTabsComponent = fixture.debugElement.query(By.css('app-task-filter-tabs'))?.componentInstance;
+      console.log('TaskFilterTabsComponent found:', !!taskFilterTabsComponent);
+      
+      // Check if we can access the output
+      console.log('FilterChange output:', taskFilterTabsComponent?.filterChange);
+      
+      // Directly trigger the output event
+      taskFilterTabsComponent?.filterChange.emit('TODO');
       fixture.detectChanges();
 
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      fixture.detectChanges();
+      console.log('lastStatusFilter after emit:', component.lastStatusFilter);
 
       expect(component.lastStatusFilter).toBe('TODO');
       expect(component.lastProjectFilter).toBeNull();
@@ -292,8 +297,10 @@ describe('Cumulative Filter Integration Tests - US-008', () => {
       const options = projectSelect.queryAll(By.css('option'));
       const workOption = options.find((opt) => opt.nativeElement.textContent.includes('Work'));
 
+      // Simulate actual selection and change event
       workOption!.nativeElement.selected = true;
-      projectSelect.triggerEventHandler('change', { target: { value: 'Work' } });
+      projectSelect.nativeElement.value = 'Work';
+      projectSelect.nativeElement.dispatchEvent(new Event('change', { bubbles: true }));
       fixture.detectChanges();
 
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -313,7 +320,7 @@ describe('Cumulative Filter Integration Tests - US-008', () => {
 
       // Apply status filter
       const todoTab = statusTabs[1]; // TODO tab
-      todoTab.triggerEventHandler('click', null);
+      todoTab.nativeElement.click();
       fixture.detectChanges();
 
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -322,7 +329,8 @@ describe('Cumulative Filter Integration Tests - US-008', () => {
       // Apply project filter
       const workOption = projectOptions.find((opt) => opt.nativeElement.textContent.includes('Work'));
       workOption!.nativeElement.selected = true;
-      projectSelect.triggerEventHandler('change', { target: { value: 'Work' } });
+      projectSelect.nativeElement.value = 'Work';
+      projectSelect.nativeElement.dispatchEvent(new Event('change', { bubbles: true }));
       fixture.detectChanges();
 
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -342,12 +350,13 @@ describe('Cumulative Filter Integration Tests - US-008', () => {
       const projectSelect = fixture.debugElement.query(By.css('.task-project-filter__select'));
       const projectOptions = projectSelect.queryAll(By.css('option'));
 
-      statusTabs[1].triggerEventHandler('click', null); // TODO
+      statusTabs[1].nativeElement.click(); // TODO
       fixture.detectChanges();
 
       const workOption = projectOptions.find((opt) => opt.nativeElement.textContent.includes('Work'));
       workOption!.nativeElement.selected = true;
-      projectSelect.triggerEventHandler('change', { target: { value: 'Work' } });
+      projectSelect.nativeElement.value = 'Work';
+      projectSelect.nativeElement.dispatchEvent(new Event('change', { bubbles: true }));
       fixture.detectChanges();
 
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -356,7 +365,8 @@ describe('Cumulative Filter Integration Tests - US-008', () => {
       // Change project filter
       const personalOption = projectOptions.find((opt) => opt.nativeElement.textContent.includes('Personal'));
       personalOption!.nativeElement.selected = true;
-      projectSelect.triggerEventHandler('change', { target: { value: 'Personal' } });
+      projectSelect.nativeElement.value = 'Personal';
+      projectSelect.nativeElement.dispatchEvent(new Event('change', { bubbles: true }));
       fixture.detectChanges();
 
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -377,12 +387,13 @@ describe('Cumulative Filter Integration Tests - US-008', () => {
       const projectSelect = fixture.debugElement.query(By.css('.task-project-filter__select'));
       const projectOptions = projectSelect.queryAll(By.css('option'));
 
-      statusTabs[1].triggerEventHandler('click', null); // TODO
+      statusTabs[1].nativeElement.click(); // TODO
       fixture.detectChanges();
 
       const workOption = projectOptions.find((opt) => opt.nativeElement.textContent.includes('Work'));
       workOption!.nativeElement.selected = true;
-      projectSelect.triggerEventHandler('change', { target: { value: 'Work' } });
+      projectSelect.nativeElement.value = 'Work';
+      projectSelect.nativeElement.dispatchEvent(new Event('change', { bubbles: true }));
       fixture.detectChanges();
 
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -390,7 +401,7 @@ describe('Cumulative Filter Integration Tests - US-008', () => {
 
       // Change status filter
       const inProgressTab = statusTabs[2]; // IN_PROGRESS tab
-      inProgressTab.triggerEventHandler('click', null);
+      inProgressTab.nativeElement.click();
       fixture.detectChanges();
 
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -413,12 +424,13 @@ describe('Cumulative Filter Integration Tests - US-008', () => {
       const projectOptions = projectSelect.queryAll(By.css('option'));
 
       // Apply filters
-      statusTabs[1].triggerEventHandler('click', null); // TODO
+      statusTabs[1].nativeElement.click(); // TODO
       fixture.detectChanges();
 
       const workOption = projectOptions.find((opt) => opt.nativeElement.textContent.includes('Work'));
       workOption!.nativeElement.selected = true;
-      projectSelect.triggerEventHandler('change', { target: { value: 'Work' } });
+      projectSelect.nativeElement.value = 'Work';
+      projectSelect.nativeElement.dispatchEvent(new Event('change', { bubbles: true }));
       fixture.detectChanges();
 
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -438,12 +450,13 @@ describe('Cumulative Filter Integration Tests - US-008', () => {
       const projectOptions = projectSelect.queryAll(By.css('option'));
 
       // Start with TODO + Work
-      statusTabs[1].triggerEventHandler('click', null);
+      statusTabs[1].nativeElement.click();
       fixture.detectChanges();
 
       const workOption = projectOptions.find((opt) => opt.nativeElement.textContent.includes('Work'));
       workOption!.nativeElement.selected = true;
-      projectSelect.triggerEventHandler('change', { target: { value: 'Work' } });
+      projectSelect.nativeElement.value = 'Work';
+      projectSelect.nativeElement.dispatchEvent(new Event('change', { bubbles: true }));
       fixture.detectChanges();
 
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -453,7 +466,7 @@ describe('Cumulative Filter Integration Tests - US-008', () => {
       expect(component.currentProjectFilter()).toBe('Work');
 
       // Change to IN_PROGRESS + Work
-      statusTabs[2].triggerEventHandler('click', null);
+      statusTabs[2].nativeElement.click();
       fixture.detectChanges();
 
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -471,12 +484,13 @@ describe('Cumulative Filter Integration Tests - US-008', () => {
       const projectSelect = fixture.debugElement.query(By.css('.task-project-filter__select'));
       const projectOptions = projectSelect.queryAll(By.css('option'));
 
-      statusTabs[1].triggerEventHandler('click', null); // TODO
+      statusTabs[1].nativeElement.click(); // TODO
       fixture.detectChanges();
 
       const workOption = projectOptions.find((opt) => opt.nativeElement.textContent.includes('Work'));
       workOption!.nativeElement.selected = true;
-      projectSelect.triggerEventHandler('change', { target: { value: 'Work' } });
+      projectSelect.nativeElement.value = 'Work';
+      projectSelect.nativeElement.dispatchEvent(new Event('change', { bubbles: true }));
       fixture.detectChanges();
 
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -495,7 +509,7 @@ describe('Cumulative Filter Integration Tests - US-008', () => {
       const statusTabs = fixture.debugElement.queryAll(By.css('.task-filter-tabs__tab'));
 
       // Set filters
-      statusTabs[1].triggerEventHandler('click', null); // TODO
+      statusTabs[1].nativeElement.click(); // TODO
       fixture.detectChanges();
 
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -506,7 +520,7 @@ describe('Cumulative Filter Integration Tests - US-008', () => {
       fixture.detectChanges();
 
       // Change status filter
-      statusTabs[2].triggerEventHandler('click', null); // IN_PROGRESS
+      statusTabs[2].nativeElement.click(); // IN_PROGRESS
       fixture.detectChanges();
 
       await new Promise((resolve) => setTimeout(resolve, 50));

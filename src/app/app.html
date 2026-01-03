@@ -26,6 +26,7 @@
   <app-task-creation-form (taskCreated)="onTaskCreated($event)" (cancelled)="onTaskCreationCancelled()" />
   } @else {
   <app-task-filter-tabs (filterChange)="onFilterChange($event)" />
+  <app-task-project-filter (filterChange)="onProjectFilterChange($event)" />
    <app-task-list [statusFilter]="currentFilter()" (createTaskRequested)="onCreateTaskRequested()" (taskDeleted)="onTaskDeleted()"
      (actionError)="onActionError($event)" />
   }

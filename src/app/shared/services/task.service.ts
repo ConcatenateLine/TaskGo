@@ -112,6 +112,20 @@ export class TaskService {
   }
 
   /**
+   * Get task counts by project
+   */
+  getTaskCountsByProject(): { all: number; Personal: number; Work: number; Study: number; General: number } {
+    const tasks = this.getTasks();
+    return {
+      all: tasks.length,
+      Personal: tasks.filter((t) => t.project === 'Personal').length,
+      Work: tasks.filter((t) => t.project === 'Work').length,
+      Study: tasks.filter((t) => t.project === 'Study').length,
+      General: tasks.filter((t) => t.project === 'General').length,
+    };
+  }
+
+  /**
    * Create a new task
    */
   createTask(task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Task {
