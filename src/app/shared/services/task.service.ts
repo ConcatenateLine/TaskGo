@@ -4,6 +4,7 @@ import { CryptoService } from './crypto.service';
 import { ValidationService } from './validation.service';
 import { AuthService } from './auth.service';
 import { SecurityService } from './security.service';
+import { AutoSaveService } from './auto-save.service';
 
 @Injectable({
   providedIn: 'root',
@@ -14,6 +15,7 @@ export class TaskService {
   private validationService = inject(ValidationService);
   private authService = inject(AuthService);
   private securityService = inject(SecurityService);
+  private autoSaveService = inject(AutoSaveService);
 
   constructor() {
     // Note: Data loading is now handled by AppStartupService via APP_INITIALIZER
@@ -236,7 +238,13 @@ export class TaskService {
       updatedAt: new Date(),
     };
 
+    const currentTasks = this.tasks();
     this.tasks.update((tasks) => [...tasks, newTask]);
+    
+    // Queue auto-save operation
+    this.autoSaveService.queueTaskCreation(newTask, currentTasks);
+    
+    // Keep existing encrypted storage as backup
     this.saveToEncryptedStorage();
 
     // Log security event
@@ -326,10 +334,15 @@ export class TaskService {
       updatedAt: new Date(),
     };
 
+    const currentTasks = this.tasks();
     this.tasks.update((currentTasks) =>
       currentTasks.map((task) => (task.id === id ? updatedTask : task))
     );
 
+    // Queue auto-save operation
+    this.autoSaveService.queueTaskUpdate(updatedTask, currentTasks);
+
+    // Keep existing encrypted storage as backup
     this.saveToEncryptedStorage();
 
     // Log security event
@@ -380,7 +393,13 @@ export class TaskService {
       return false;
     }
 
+    const currentTasks = this.tasks();
     this.tasks.update((currentTasks) => currentTasks.filter((task) => task.id !== id));
+    
+    // Queue auto-save operation
+    this.autoSaveService.queueTaskDeletion(id, currentTasks);
+
+    // Keep existing encrypted storage as backup
     this.saveToEncryptedStorage();
 
     // Log security event
@@ -576,11 +595,15 @@ export class TaskService {
       };
 
       // Update tasks signal
+      const currentTasks = this.tasks();
       this.tasks.update((currentTasks) =>
         currentTasks.map((task) => (task.id === taskId ? updatedTask : task))
       );
 
-      // Save to encrypted storage
+      // Queue auto-save operation
+      this.autoSaveService.queueTaskUpdate(updatedTask, currentTasks);
+
+      // Save to encrypted storage as backup
       this.saveToEncryptedStorage();
 
       // Log security event
@@ -616,6 +639,48 @@ export class TaskService {
    */
   getTasksSignal() {
     return this.tasks;
+  }
+
+  /**
+   * Get auto-save metrics
+   */
+  getAutoSaveMetrics() {
+    return this.autoSaveService.getMetrics();
+  }
+
+  /**
+   * Force sync with localStorage
+   */
+  async forceSync() {
+    return await this.autoSaveService.forceSync();
+  }
+
+  /**
+   * Get pending auto-save operations
+   */
+  getPendingOperations() {
+    return this.autoSaveService.getPendingOperations();
+  }
+
+  /**
+   * Cancel pending auto-save operation
+   */
+  cancelPendingOperation(operationId: string): boolean {
+    return this.autoSaveService.cancelPendingOperation(operationId);
+  }
+
+  /**
+   * Update auto-save configuration
+   */
+  updateAutoSaveConfig(config: { debounceTimeMs?: number; enableOptimisticUpdates?: boolean }) {
+    this.autoSaveService.updateConfig(config);
+  }
+
+  /**
+   * Get auto-save service instance for advanced usage
+   */
+  getAutoSaveService(): AutoSaveService {
+    return this.autoSaveService;
   }
 
   private generateId(): string {
