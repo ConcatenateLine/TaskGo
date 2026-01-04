@@ -5,23 +5,32 @@ import { TaskCreationFormComponent } from './components/task-creation-form/task-
 import { TaskFilterTabsComponent } from './components/task-filter-tabs/task-filter-tabs.component';
 import { TaskProjectFilterComponent } from './components/task-project-filter/task-project-filter.component';
 import { StartupLoaderComponent } from './shared/components/startup-loader/startup-loader.component';
+import { NotificationContainerComponent } from './shared/components/notification/notification-container.component';
 import { TaskService } from './shared/services/task.service';
 import { AuthService } from './shared/services/auth.service';
 import { SecurityService } from './shared/services/security.service';
 import { AppStartupService } from './shared/services/app-startup.service';
+import { NotificationService } from './shared/services/notification.service';
+import { AutoSaveService } from './shared/services/auto-save.service';
 import { Task, TaskProject } from './shared/models/task.model';
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, TaskListComponent, TaskCreationFormComponent, TaskFilterTabsComponent, TaskProjectFilterComponent, StartupLoaderComponent],
+  imports: [
+    CommonModule, 
+    TaskListComponent, 
+    TaskCreationFormComponent, 
+    TaskFilterTabsComponent, 
+    TaskProjectFilterComponent, 
+    StartupLoaderComponent,
+    NotificationContainerComponent
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
 export class App implements OnInit {
   protected readonly title = signal('TaskGo');
   protected readonly showTaskCreation = signal(false);
-  protected readonly successMessage = signal<string | null>(null);
-  protected readonly errorMessage = signal<string | null>(null);
   protected readonly currentFilter = signal<'all' | 'TODO' | 'IN_PROGRESS' | 'DONE'>('all');
   protected readonly currentProjectFilter = signal<TaskProject | 'all'>('all');
 
@@ -29,6 +38,8 @@ export class App implements OnInit {
   private authService = inject(AuthService);
   private securityService = inject(SecurityService);
   private startupService = inject(AppStartupService);
+  private notificationService = inject(NotificationService);
+  private autoSaveService = inject(AutoSaveService);
 
   // Computed properties for startup state
   protected isAppReady = computed(() => this.startupService.isReady());
@@ -41,6 +52,9 @@ export class App implements OnInit {
     if (typeof window !== 'undefined') {
       (window as any).taskService = this.taskService;
     }
+    
+    // Handle startup errors/warnings
+    this.handleStartupErrors();
     
     // Only proceed if startup was successful
     if (this.isAppReady()) {
@@ -84,14 +98,7 @@ export class App implements OnInit {
   onTaskCreated(task: Task): void {
     console.log('Task created:', task);
     
-    // Show success message globally
-    this.successMessage.set('Task created successfully');
-    
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      this.successMessage.set(null);
-    }, 3000);
-    
+    // The AutoSaveService will handle notifications for manual saves
     // Switch back to task list immediately
     this.showTaskCreation.set(false);
   }
@@ -101,23 +108,13 @@ export class App implements OnInit {
   }
 
   onTaskDeleted(): void {
-    // Show success message globally
-    this.successMessage.set('Task deleted successfully');
-    
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      this.successMessage.set(null);
-    }, 3000);
+    // The AutoSaveService will handle notifications for manual deletions
+    // No manual notification needed here
   }
 
   onActionError(error: Error): void {
     console.error('An error occurred:', error.message);
-    this.errorMessage.set(error.message);
-    
-    // Clear error message after 3 seconds
-    setTimeout(() => {
-      this.errorMessage.set(null);
-    }, 3000);
+    this.notificationService.showError(error.message);
   }
 
   onFilterChange(filter: 'all' | 'TODO' | 'IN_PROGRESS' | 'DONE'): void {
@@ -128,15 +125,35 @@ export class App implements OnInit {
     this.currentProjectFilter.set(project);
   }
 
-  /**
-   * Check if app is running in secure context
-   */
-  isSecureContext(): boolean {
-    return (
-      typeof window !== 'undefined' &&
-      (window.location.protocol === 'https:' ||
-        window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1')
-    );
-  }
+/**
+    * Handle startup errors with notification system
+    */
+   private handleStartupErrors(): void {
+     const startupError = this.startupError();
+     if (startupError) {
+       this.notificationService.showError(`Startup Error: ${startupError}`, {
+         label: 'Retry',
+         handler: () => window.location.reload()
+       });
+     }
+
+     const warnings = this.startupWarnings();
+     if (warnings.length > 0) {
+       warnings.forEach(warning => {
+         this.notificationService.showWarning(`Startup Warning: ${warning}`, 8000);
+       });
+     }
+   }
+
+   /**
+    * Check if app is running in secure context
+    */
+   isSecureContext(): boolean {
+     return (
+       typeof window !== 'undefined' &&
+       (window.location.protocol === 'https:' ||
+         window.location.hostname === 'localhost' ||
+         window.location.hostname === '127.0.0.1')
+     );
+   }
 }

@@ -4,12 +4,16 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Task } from '../models/task.model';
 import { LocalStorageService, StorageResult } from './local-storage.service';
 import { AuthService } from './auth.service';
+import { NotificationService } from './notification.service';
+
+export type AutoSaveSource = 'manual' | 'auto' | 'system';
 
 export interface AutoSaveOperation {
   id: string;
   type: 'create' | 'update' | 'delete';
   timestamp: number;
   data: Task | string;
+  source: AutoSaveSource;
   optimisticData?: Task[];
   rollbackData?: Task[];
 }
@@ -43,6 +47,7 @@ export interface ConflictResolution {
 export class AutoSaveService {
   private localStorageService = inject(LocalStorageService);
   private authService = inject(AuthService);
+  private notificationService = inject(NotificationService);
   private destroyRef = inject(DestroyRef);
 
   private readonly DEFAULT_CONFIG: AutoSaveConfig = {
@@ -270,6 +275,28 @@ export class AutoSaveService {
         timestamp: new Date(),
         userId: this.authService.getUserContext()?.userId,
       });
+
+      // Emit success notification for manual operations only
+      if (result.operation.source === 'manual') {
+        const message = this.getSuccessMessage(result.operation);
+        this.notificationService.showSuccess(message, 'manual');
+      }
+    } else {
+      // Show error notification for any failed operation
+      this.notificationService.showError(`Failed to ${result.operation.type} task. Please try again.`);
+    }
+  }
+
+  private getSuccessMessage(operation: AutoSaveOperation): string {
+    switch (operation.type) {
+      case 'create':
+        return 'Task saved successfully';
+      case 'update':
+        return 'Task updated successfully';
+      case 'delete':
+        return 'Task deleted successfully';
+      default:
+        return 'Operation completed successfully';
     }
   }
 
@@ -303,12 +330,15 @@ export class AutoSaveService {
     });
   }
 
-  public queueTaskCreation(task: Task, currentTasks: Task[]): void {
+  public queueTaskCreation(task: Task, currentTasks: Task[]): void;
+  public queueTaskCreation(task: Task, currentTasks: Task[], source: AutoSaveSource): void;
+  public queueTaskCreation(task: Task, currentTasks: Task[], source: AutoSaveSource = 'auto'): void {
     const operation: AutoSaveOperation = {
       id: `create_${task.id}_${Date.now()}`,
       type: 'create',
       timestamp: Date.now(),
       data: task,
+      source,
       optimisticData: this.config.enableOptimisticUpdates ? [...currentTasks, task] : undefined,
       rollbackData: this.config.enableOptimisticUpdates ? [...currentTasks] : undefined,
     };
@@ -317,12 +347,15 @@ export class AutoSaveService {
     this.operationQueue$.next(operation);
   }
 
-  public queueTaskUpdate(task: Task, currentTasks: Task[]): void {
+  public queueTaskUpdate(task: Task, currentTasks: Task[]): void;
+  public queueTaskUpdate(task: Task, currentTasks: Task[], source: AutoSaveSource): void;
+  public queueTaskUpdate(task: Task, currentTasks: Task[], source: AutoSaveSource = 'auto'): void {
     const operation: AutoSaveOperation = {
       id: `update_${task.id}_${Date.now()}`,
       type: 'update',
       timestamp: Date.now(),
       data: task,
+      source,
       optimisticData: this.config.enableOptimisticUpdates ? currentTasks.map(t => t.id === task.id ? task : t) : undefined,
       rollbackData: this.config.enableOptimisticUpdates ? [...currentTasks] : undefined,
     };
@@ -331,12 +364,15 @@ export class AutoSaveService {
     this.operationQueue$.next(operation);
   }
 
-  public queueTaskDeletion(taskId: string, currentTasks: Task[]): void {
+  public queueTaskDeletion(taskId: string, currentTasks: Task[]): void;
+  public queueTaskDeletion(taskId: string, currentTasks: Task[], source: AutoSaveSource): void;
+  public queueTaskDeletion(taskId: string, currentTasks: Task[], source: AutoSaveSource = 'auto'): void {
     const operation: AutoSaveOperation = {
       id: `delete_${taskId}_${Date.now()}`,
       type: 'delete',
       timestamp: Date.now(),
       data: taskId,
+      source,
       optimisticData: this.config.enableOptimisticUpdates ? currentTasks.filter(t => t.id !== taskId) : undefined,
       rollbackData: this.config.enableOptimisticUpdates ? [...currentTasks] : undefined,
     };

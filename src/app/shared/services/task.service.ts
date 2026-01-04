@@ -241,8 +241,8 @@ export class TaskService {
     const currentTasks = this.tasks();
     this.tasks.update((tasks) => [...tasks, newTask]);
     
-    // Queue auto-save operation
-    this.autoSaveService.queueTaskCreation(newTask, currentTasks);
+    // Queue auto-save operation (manual from TaskService perspective)
+    this.autoSaveService.queueTaskCreation(newTask, currentTasks, 'manual');
     
     // Keep existing encrypted storage as backup
     this.saveToEncryptedStorage();
@@ -339,8 +339,8 @@ export class TaskService {
       currentTasks.map((task) => (task.id === id ? updatedTask : task))
     );
 
-    // Queue auto-save operation
-    this.autoSaveService.queueTaskUpdate(updatedTask, currentTasks);
+    // Queue auto-save operation (manual from TaskService perspective)
+    this.autoSaveService.queueTaskUpdate(updatedTask, currentTasks, 'manual');
 
     // Keep existing encrypted storage as backup
     this.saveToEncryptedStorage();
@@ -397,7 +397,7 @@ export class TaskService {
     
     // Queue auto-save operation with updated tasks (after deletion)
     const updatedTasks = this.tasks();
-    this.autoSaveService.queueTaskDeletion(id, updatedTasks);
+    this.autoSaveService.queueTaskDeletion(id, updatedTasks, 'manual');
 
     // Keep existing encrypted storage as backup
     this.saveToEncryptedStorage();
@@ -600,8 +600,8 @@ export class TaskService {
         currentTasks.map((task) => (task.id === taskId ? updatedTask : task))
       );
 
-      // Queue auto-save operation
-      this.autoSaveService.queueTaskUpdate(updatedTask, currentTasks);
+      // Queue auto-save operation (manual from TaskService perspective)
+      this.autoSaveService.queueTaskUpdate(updatedTask, currentTasks, 'manual');
 
       // Save to encrypted storage as backup
       this.saveToEncryptedStorage();
