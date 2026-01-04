@@ -4,6 +4,7 @@ import { App } from './app';
 import { TaskService } from './shared/services/task.service';
 import { AuthService } from './shared/services/auth.service';
 import { SecurityService } from './shared/services/security.service';
+import { AppStartupService } from './shared/services/app-startup.service';
 
 describe('App', () => {
   let fixture: any;
@@ -15,7 +16,13 @@ describe('App', () => {
       providers: [
         { provide: TaskService, useValue: { getTasks: () => [], initializeMockData: () => {}, getTasksByStatusAndProject: () => [], getTaskCounts: () => ({ todo: 0, inProgress: 0, done: 0, total: 0 }) } },
         { provide: AuthService, useValue: { getUserContext: () => ({ userId: 'test' }), isAuthenticated: () => true, createAnonymousUser: () => () => {}, logSecurityEvent: () => {} } },
-        { provide: SecurityService, useValue: { checkRateLimit: () => ({ allowed: true }) } }
+        { provide: SecurityService, useValue: { checkRateLimit: () => ({ allowed: true }) } },
+        { provide: AppStartupService, useValue: { 
+          isLoading: () => false, 
+          isReady: () => true, 
+          error: () => null, 
+          warnings: () => []
+        } }
       ]
     }).compileComponents();
 
@@ -31,7 +38,11 @@ describe('App', () => {
   it('should render title', async () => {
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('TaskGo');
+    const titleElement = compiled.querySelector('.app-header__title');
+    console.log("titleElement:", titleElement?.innerHTML);
+    
+    
+    expect(titleElement?.textContent).toContain('TaskGo');
   });
 
   // ===============================================================

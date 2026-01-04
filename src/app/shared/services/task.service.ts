@@ -393,11 +393,11 @@ export class TaskService {
       return false;
     }
 
-    const currentTasks = this.tasks();
     this.tasks.update((currentTasks) => currentTasks.filter((task) => task.id !== id));
     
-    // Queue auto-save operation
-    this.autoSaveService.queueTaskDeletion(id, currentTasks);
+    // Queue auto-save operation with updated tasks (after deletion)
+    const updatedTasks = this.tasks();
+    this.autoSaveService.queueTaskDeletion(id, updatedTasks);
 
     // Keep existing encrypted storage as backup
     this.saveToEncryptedStorage();

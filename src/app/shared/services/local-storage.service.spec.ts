@@ -207,23 +207,24 @@ describe('LocalStorageService - Error Handling', () => {
   }, 10000);
 
   it('should handle complete storage unavailability', async () => {
-    const storageError = new Error('Storage not available');
-    storageError.name = 'TypeError';
+    // Simulate complete storage failure by mocking both storages to throw TypeError
+    const storageError = new TypeError('storage is not available');
+    
     (mockLocalStorage.setItem as any).mockImplementation(() => { throw storageError; });
     (mockSessionStorage.setItem as any).mockImplementation(() => { throw storageError; });
 
     const result = await service.setItem('test_key', mockTask);
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
-    expect(result.error?.name).toBe('UnknownError'); // Fixed: service returns UnknownError for general failures
-  }, 20000); // Increased timeout to handle retry logic
+    expect(result.error?.name).toBe('StorageDisabledError');
+  }, 4000);
 
   it('should handle corrupted JSON data', async () => {
     (mockLocalStorage.getItem as any).mockReturnValue('invalid json{');
 
     const result = await service.getItem<Task>('corrupted_key');
     expect(result.success).toBe(false);
-    expect(result.error?.name).toBe('UnknownError'); // Fixed: service returns UnknownError for JSON parse issues
+    expect(result.error?.name).toBe('SerializationError');
   }, 10000);
 
   it('should handle isUsingFallbackStorage method', () => {
@@ -256,6 +257,32 @@ describe('LocalStorageService - Error Handling', () => {
 
     const result = await service.getItem<Task>('invalid_key');
     expect(result.success).toBe(false);
-    expect(result.error?.name).toBe('UnknownError'); // Fixed: service returns UnknownError for validation failures
+    expect(result.error?.name).toBe('ValidationError');
   }, 10000);
+
+  it('should handle security errors', async () => {
+    const securityError = new Error('Security error accessing storage');
+    securityError.name = 'SecurityError';
+    (mockLocalStorage.setItem as any).mockImplementation(() => { throw securityError; });
+    (mockSessionStorage.setItem as any).mockImplementation(() => { throw securityError; });
+
+    const result = await service.setItem('test_key', mockTask);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeDefined();
+    expect(result.error?.name).toBe('SecurityError');
+    expect(result.error?.isSecurityError).toBe(true);
+  }, 20000);
+
+  it('should handle quota exceeded errors directly', async () => {
+    const quotaError = new Error('Storage quota exceeded');
+    quotaError.name = 'QuotaExceededError';
+    (mockLocalStorage.setItem as any).mockImplementation(() => { throw quotaError; });
+    (mockSessionStorage.setItem as any).mockImplementation(() => { throw quotaError; });
+
+    const result = await service.setItem('test_key', mockTask);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeDefined();
+    expect(result.error?.name).toBe('QuotaExceededError');
+    expect(result.error?.isQuotaExceeded).toBe(true);
+  }, 20000);
 });

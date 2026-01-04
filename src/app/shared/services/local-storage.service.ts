@@ -190,6 +190,26 @@ export class LocalStorageService {
     } catch (error) {
       const originalError = error as Error;
 
+      // Don't retry our custom storage errors - they're final
+      if (originalError.name === 'QuotaExceededError' || 
+          originalError.name === 'SecurityError' || 
+          originalError.name === 'StorageDisabledError' ||
+          originalError.name === 'SerializationError' ||
+          originalError.name === 'ValidationError' ||
+          (originalError.name === 'TypeError' && originalError.message.toLowerCase().includes('storage'))) {
+        // Handle TypeError with storage message by converting it to StorageDisabledError
+        if (originalError.name === 'TypeError' && originalError.message.toLowerCase().includes('storage')) {
+          throw this.createError('StorageDisabledError', `Storage is disabled or unavailable for key: ${key}`, originalError);
+        }
+        // Ensure custom error properties are set even if error has correct name
+        const enhancedError = this.createError(
+          originalError.name as StorageError['name'], 
+          originalError.message, 
+          originalError
+        );
+        throw enhancedError;
+      }
+
       if (this.CONFIG.enableRetry && attempts < this.CONFIG.maxRetries) {
         await this.delay(this.CONFIG.retryDelay * (attempts + 1));
         return this.attemptStorageOperation(key, operation, attempts + 1);
@@ -199,12 +219,8 @@ export class LocalStorageService {
         throw this.createError('QuotaExceededError', `Storage quota exceeded for key: ${key}`, originalError);
       }
 
-      if (originalError.name === 'SecurityError' || originalError.message.includes('security')) {
+      if (originalError.name === 'SecurityError' || originalError.message.toLowerCase().includes('security')) {
         throw this.createError('SecurityError', `Security error accessing storage for key: ${key}`, originalError);
-      }
-
-      if (originalError.name === 'TypeError' && originalError.message.includes('storage')) {
-        throw this.createError('StorageDisabledError', `Storage is disabled or unavailable for key: ${key}`, originalError);
       }
 
       throw this.createError('UnknownError', `Unknown storage error for key: ${key}`, originalError);
@@ -273,9 +289,16 @@ export class LocalStorageService {
       } catch (error) {
         const originalError = error as Error;
         if (originalError instanceof SyntaxError) {
-          throw this.createError('SerializationError', `Invalid JSON format for key: ${key}`, originalError);
+          const serializationError = this.createError('SerializationError', `Invalid JSON format for key: ${key}`, originalError);
+          throw serializationError;
         }
-        throw this.createError('ValidationError', `Data validation failed for key: ${key}`, originalError);
+        if (originalError.message.includes('Invalid storage payload structure') || 
+            originalError.message.includes('Data integrity check failed') || 
+            originalError.message.includes('Data validation failed')) {
+          const validationError = this.createError('ValidationError', `Data validation failed for key: ${key}`, originalError);
+          throw validationError;
+        }
+        throw originalError;
       }
     }, attempts);
   }
@@ -303,6 +326,7 @@ export class LocalStorageService {
       }
     }
 
+    // Ensure we preserve the full error object with all properties
     return {
       success: false,
       error: lastError
