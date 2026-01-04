@@ -1,0 +1,381 @@
+<div class="storage-management__container">
+  <header class="storage-management__header">
+    <h1>Storage Management</h1>
+    <p>Monitor and manage your local storage, backups, and data integrity</p>
+    
+    <div class="storage-management__actions">
+      <button 
+        (click)="refresh()" 
+        class="btn btn-secondary"
+        [disabled]="isLoading()"
+        aria-label="Refresh storage data"
+      >
+        🔄 Refresh
+      </button>
+      
+      <button 
+        (click)="performCleanup()" 
+        class="btn btn-warning"
+        [disabled]="isLoading()"
+        aria-label="Perform storage cleanup"
+      >
+        🧹 Cleanup
+      </button>
+      
+      <button 
+        (click)="exportStorageData()" 
+        class="btn btn-primary"
+        [disabled]="isLoading()"
+        aria-label="Export storage data"
+      >
+        📤 Export
+      </button>
+    </div>
+  </header>
+
+  <!-- Storage Status Overview -->
+  @if (healthReport()) {
+    <section class="storage-management__overview">
+      <div class="storage-status-card" [style.border-color]="getStorageStatusColor(healthReport().status)">
+        <div class="storage-status-header">
+          <span class="storage-status-icon">{{ getStorageStatusIcon(healthReport().status) }}</span>
+          <h2>Storage Status: {{ healthReport().status | titlecase }}</h2>
+        </div>
+        
+        <div class="storage-metrics">
+          <div class="metric">
+            <label>Storage Usage</label>
+            <div class="progress-bar">
+              <div 
+                class="progress-fill" 
+                [style.width.%]="storageUsagePercentage()"
+                [style.background]="getStorageStatusColor(healthReport().status)"
+              ></div>
+            </div>
+            <span>{{ storageUsagePercentage().toFixed(1) }}%</span>
+          </div>
+          
+          <div class="metric">
+            <label>Used Space</label>
+            <span>{{ formatBytes(healthReport().usage.used) }}</span>
+          </div>
+          
+          <div class="metric">
+            <label>Available Space</label>
+            <span>{{ formatBytes(healthReport().usage.available) }}</span>
+          </div>
+          
+          <div class="metric">
+            <label>Backups</label>
+            <span>{{ healthReport().backupCount }}</span>
+          </div>
+          
+          <div class="metric">
+            <label>Corruption Events</label>
+            <span>{{ healthReport().corruptionEvents }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Recommendations -->
+      @if (healthReport().recommendations.length > 0) {
+        <div class="recommendations">
+          <h3>Recommendations</h3>
+          <ul>
+            @for (recommendation of healthReport().recommendations; track recommendation) {
+              <li [class]="recommendation.includes('critical') ? 'critical' : 
+                           recommendation.includes('warning') ? 'warning' : 'info'">
+                {{ recommendation }}
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    </section>
+  }
+
+  <!-- Navigation Tabs -->
+  <nav class="storage-management__tabs" role="tablist">
+    <button 
+      *ngFor="let tab of ['overview', 'backups', 'analytics', 'recovery', 'export']" 
+      (click)="activeTab.set(tab as any)"
+      [class.active]="activeTab() === tab"
+      [attr.aria-selected]="activeTab() === tab"
+      [attr.aria-controls]="${tab}-panel"
+      [attr.role]="'tab'"
+      class="tab-button"
+    >
+      {{ tab | titlecase }}
+    </button>
+  </nav>
+
+  <!-- Loading Indicator -->
+  @if (isLoading()) {
+    <div class="loading-indicator">
+      <div class="spinner"></div>
+      <p>Processing...</p>
+    </div>
+  }
+
+  <!-- Tab Panels -->
+  <main class="storage-management__content">
+    <!-- Overview Tab -->
+    @if (activeTab() === 'overview') {
+      <section id="overview-panel" class="tab-panel" role="tabpanel">
+        @if (analytics()) {
+          <div class="analytics-overview">
+            <h3>Storage Analytics</h3>
+            <div class="analytics-grid">
+              <div class="analytics-card">
+                <h4>Total Operations</h4>
+                <span class="analytics-value">{{ analytics().totalOperations }}</span>
+              </div>
+              
+              <div class="analytics-card">
+                <h4>Backup Operations</h4>
+                <span class="analytics-value">{{ analytics().backupOperations }}</span>
+              </div>
+              
+              <div class="analytics-card">
+                <h4>Recovery Operations</h4>
+                <span class="analytics-value">{{ analytics().recoveryOperations }}</span>
+              </div>
+              
+              <div class="analytics-card">
+                <h4>Average Data Size</h4>
+                <span class="analytics-value">{{ formatBytes(analytics().averageDataSize) }}</span>
+              </div>
+              
+              <div class="analytics-card">
+                <h4>Peak Usage</h4>
+                <span class="analytics-value">{{ formatBytes(analytics().peakUsage) }}</span>
+              </div>
+              
+              <div class="analytics-card">
+                <h4>Quota Exceeded Events</h4>
+                <span class="analytics-value">{{ analytics().quotaExceededEvents }}</span>
+              </div>
+            </div>
+            
+            <button 
+              (click)="getDetailedAnalytics()" 
+              class="btn btn-secondary"
+              [disabled]="isLoading()"
+            >
+              📊 Get Detailed Analytics
+            </button>
+          </div>
+        }
+      </section>
+    }
+
+    <!-- Backups Tab -->
+    @if (activeTab() === 'backups') {
+      <section id="backups-panel" class="tab-panel" role="tabpanel">
+        <div class="backups-header">
+          <h3>Backup History</h3>
+          <span>{{ backupHistory().length }} backups available</span>
+        </div>
+        
+        @if (hasBackups()) {
+          <div class="backups-list">
+            @for (backup of backupHistory(); track backup.id) {
+              <div 
+                class="backup-card"
+                [class.selected]="selectedBackup()?.id === backup.id"
+                (click)="selectBackup(backup)"
+              >
+                <div class="backup-header">
+                  <span class="backup-operation" [style.color]="getOperationColor(backup.operation)">
+                    {{ backup.operation | uppercase }}
+                  </span>
+                  <span class="backup-date">{{ formatDate(backup.timestamp) }}</span>
+                </div>
+                
+                <div class="backup-details">
+                  <p><strong>Key:</strong> {{ backup.key }}</p>
+                  <p><strong>Size:</strong> {{ formatBytes(JSON.stringify(backup.data).length) }}</p>
+                  <p><strong>Version:</strong> {{ backup.metadata.version }}</p>
+                  @if (backup.metadata.backupId) {
+                    <p><strong>Backup ID:</strong> {{ backup.metadata.backupId }}</p>
+                  }
+                </div>
+                
+                <div class="backup-actions">
+                  <button 
+                    (click)="restoreFromBackup(backup); $event.stopPropagation()"
+                    class="btn btn-primary btn-small"
+                    [disabled]="isLoading()"
+                  >
+                    🔄 Restore
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="empty-state">
+            <p>No backups available. Backups are created automatically during data operations.</p>
+          </div>
+        }
+      </section>
+    }
+
+    <!-- Analytics Tab -->
+    @if (activeTab() === 'analytics') {
+      <section id="analytics-panel" class="tab-panel" role="tabpanel">
+        @if (analytics()) {
+          <div class="analytics-detailed">
+            <h3>Operation Frequency</h3>
+            @if (Object.keys(analytics().operationFrequency).length > 0) {
+              <div class="frequency-list">
+                @for (entry of Object.entries(analytics().operationFrequency); track entry[0]) {
+                  <div class="frequency-item">
+                    <span class="key-name">{{ entry[0] }}</span>
+                    <span class="key-count">{{ entry[1] }} operations</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p>No operation data available.</p>
+            }
+            
+            @if (Object.keys(analytics().backupSizeDistribution).length > 0) {
+              <h3>Backup Size Distribution</h3>
+              <div class="size-distribution">
+                @for (entry of Object.entries(analytics().backupSizeDistribution); track entry[0]) {
+                  <div class="size-item">
+                    <span class="size-range">{{ entry[0] }}</span>
+                    <span class="size-count">{{ entry[1] }} backups</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </section>
+    }
+
+    <!-- Recovery Tab -->
+    @if (activeTab() === 'recovery') {
+      <section id="recovery-panel" class="tab-panel" role="tabpanel">
+        <div class="recovery-options">
+          <h3>Data Recovery</h3>
+          <p>Recover data from backups or repair corrupted storage.</p>
+          
+          <div class="recovery-form">
+            <div class="form-group">
+              <label for="recovery-strategy">Recovery Strategy:</label>
+              <select 
+                id="recovery-strategy"
+                [(ngModel)]="recoveryOptions().strategy" 
+                (ngModelChange)="recoveryOptions.update(options => ({...options, strategy: $any}))"
+                class="form-control"
+              >
+                <option value="auto">Auto (Recommended)</option>
+                <option value="conservative">Conservative</option>
+                <option value="manual">Manual</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label>Keys to Recover (optional):</label>
+              <div class="key-list">
+                @for (key of recoveryOptions().keys; track key; let i = $index) {
+                  <div class="key-item">
+                    <span>{{ key }}</span>
+                    <button 
+                      (click)="removeRecoveryKey(i)" 
+                      class="btn btn-small btn-remove"
+                      aria-label="Remove key"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                }
+              </div>
+              
+              <input 
+                type="text" 
+                placeholder="Enter key name and press Enter"
+                (keydown.enter)="addRecoveryKey(($event.target as HTMLInputElement).value); ($event.target as HTMLInputElement).value = ''"
+                class="form-control"
+              >
+            </div>
+            
+            <div class="recovery-actions">
+              <button 
+                (click)="performRecovery()" 
+                class="btn btn-primary"
+                [disabled]="isLoading() || !canRecover()"
+              >
+                🔧 Start Recovery
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    }
+
+    <!-- Export Tab -->
+    @if (activeTab() === 'export') {
+      <section id="export-panel" class="tab-panel" role="tabpanel">
+        <div class="export-options">
+          <h3>Export / Import Data</h3>
+          
+          <div class="export-section">
+            <h4>Export Storage Data</h4>
+            <div class="export-controls">
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  [(ngModel)]="exportOptions().includeBackups"
+                  (ngModelChange)="exportOptions.update(options => ({...options, includeBackups: $event}))"
+                >
+                Include Backups
+              </label>
+              
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  [(ngModel)]="exportOptions().includeAnalytics"
+                  (ngModelChange)="exportOptions.update(options => ({...options, includeAnalytics: $event}))"
+                >
+                Include Analytics
+              </label>
+              
+              <button 
+                (click)="exportStorageData()" 
+                class="btn btn-primary"
+                [disabled]="isLoading()"
+              >
+                📤 Export Data
+              </button>
+            </div>
+          </div>
+          
+          <div class="import-section">
+            <h4>Import Storage Data</h4>
+            <div class="import-controls">
+              <input 
+                type="file" 
+                accept=".json"
+                (change)="importStorageData($event)"
+                class="file-input"
+                #fileInput
+              >
+              
+              <button 
+                (click)="fileInput.click()" 
+                class="btn btn-secondary"
+                [disabled]="isLoading()"
+              >
+                📥 Choose File to Import
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    }
+  </main>
+</div>
