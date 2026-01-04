@@ -16,7 +16,8 @@ export class TaskService {
   private securityService = inject(SecurityService);
 
   constructor() {
-    this.loadFromEncryptedStorage();
+    // Note: Data loading is now handled by AppStartupService via APP_INITIALIZER
+    // This ensures proper startup sequence and error handling
   }
 
   /**
@@ -601,6 +602,20 @@ export class TaskService {
       console.error('Error changing task status:', error);
       return null;
     }
+  }
+
+  /**
+   * Set tasks directly (used by startup service)
+   */
+  setTasks(tasks: Task[]): void {
+    this.tasks.set(tasks);
+  }
+
+  /**
+   * Get current tasks as signal (for startup service)
+   */
+  getTasksSignal() {
+    return this.tasks;
   }
 
   private generateId(): string {
