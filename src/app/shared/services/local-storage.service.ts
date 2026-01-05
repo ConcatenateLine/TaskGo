@@ -570,8 +570,8 @@ export class LocalStorageService {
         if (storageKey && storageKey.startsWith(`${this.BACKUP_PREFIX}${key}_`)) {
           try {
             const result = await this.readFromStorage<BackupSnapshot>(storage, storageKey);
-            if (result.success && result.data) {
-              backups.push(result.data);
+            if (result) {
+              backups.push(result);
             }
           } catch (error) {
             // Remove corrupted backup
@@ -1438,7 +1438,7 @@ export class LocalStorageService {
   }
 
   updateStorageConfig(config: Partial<StorageConfig>): void {
-    this.CONFIG = { ...this.CONFIG, ...config };
+    Object.assign(this.CONFIG, config);
   }
 
   updateBackupConfig(config: Partial<BackupConfig>): void {

@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { LocalStorageService, StorageError, BackupSnapshot } from './local-storage.service';
+import { LocalStorageService, StorageError, StorageResult, BackupSnapshot } from './local-storage.service';
 import { Task } from '../models/task.model';
 import { AuthService } from './auth.service';
 
@@ -689,9 +689,9 @@ export class DataRecoveryService {
 
       const reports = integrityReports.data!;
       const totalKeys = reports.length;
-      const validKeys = reports.filter(r => r.isValid).length;
-      const keysWithBackups = reports.filter(r => r.availableBackups > 0).length;
-      const structuralErrors = reports.filter(r => r.corruptionType === 'structure').length;
+      const validKeys = reports.filter((r: DataIntegrityReport) => r.isValid).length;
+      const keysWithBackups = reports.filter((r: DataIntegrityReport) => r.availableBackups > 0).length;
+      const structuralErrors = reports.filter((r: DataIntegrityReport) => r.corruptionType === 'structure').length;
 
       let overall: 'healthy' | 'degraded' | 'critical';
       let urgency: 'low' | 'medium' | 'high' | 'critical';

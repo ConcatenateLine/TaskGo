@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { LocalStorageService, StorageAnalytics, BackupSnapshot } from './local-storage.service';
+import { LocalStorageService, StorageAnalytics, StorageResult, BackupSnapshot } from './local-storage.service';
 import { AuthService } from './auth.service';
 
 export interface DetailedAnalytics extends StorageAnalytics {
@@ -150,7 +150,7 @@ export class StorageAnalyticsService {
       const patternsResult = await this.localStorageService.getItem(this.PATTERNS_KEY);
       if (patternsResult.success && patternsResult.data) {
         const cutoffTime = Date.now() - (this.ANALYTICS_CONFIG.dataRetentionDays * 24 * 60 * 60 * 1000);
-        const filteredPatterns = { ...patternsResult.data };
+        const filteredPatterns: Record<string, any[]> = { ...patternsResult.data };
         
         // Clean pattern arrays based on cutoff time
         Object.keys(filteredPatterns).forEach(key => {

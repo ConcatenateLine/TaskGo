@@ -98,10 +98,10 @@
   <nav class="storage-management__tabs" role="tablist">
     <button 
       *ngFor="let tab of ['overview', 'backups', 'analytics', 'recovery', 'export']" 
-      (click)="activeTab.set(tab as any)"
+      (click)="setActiveTab(tab)"
       [class.active]="activeTab() === tab"
       [attr.aria-selected]="activeTab() === tab"
-      [attr.aria-controls]="${tab}-panel"
+      [attr.aria-controls]="tab + '-panel'"
       [attr.role]="'tab'"
       class="tab-button"
     >
@@ -122,38 +122,38 @@
     <!-- Overview Tab -->
     @if (activeTab() === 'overview') {
       <section id="overview-panel" class="tab-panel" role="tabpanel">
-        @if (analytics()) {
+        @if (analytics(); as analyticsData) {
           <div class="analytics-overview">
             <h3>Storage Analytics</h3>
             <div class="analytics-grid">
               <div class="analytics-card">
                 <h4>Total Operations</h4>
-                <span class="analytics-value">{{ analytics().totalOperations }}</span>
+                <span class="analytics-value">{{ analyticsData.totalOperations }}</span>
               </div>
               
               <div class="analytics-card">
                 <h4>Backup Operations</h4>
-                <span class="analytics-value">{{ analytics().backupOperations }}</span>
+                <span class="analytics-value">{{ analyticsData.backupOperations }}</span>
               </div>
               
               <div class="analytics-card">
                 <h4>Recovery Operations</h4>
-                <span class="analytics-value">{{ analytics().recoveryOperations }}</span>
+                <span class="analytics-value">{{ analyticsData.recoveryOperations }}</span>
               </div>
               
               <div class="analytics-card">
                 <h4>Average Data Size</h4>
-                <span class="analytics-value">{{ formatBytes(analytics().averageDataSize) }}</span>
+                <span class="analytics-value">{{ formatBytes(analyticsData.averageDataSize) }}</span>
               </div>
               
               <div class="analytics-card">
                 <h4>Peak Usage</h4>
-                <span class="analytics-value">{{ formatBytes(analytics().peakUsage) }}</span>
+                <span class="analytics-value">{{ formatBytes(analyticsData.peakUsage) }}</span>
               </div>
               
               <div class="analytics-card">
                 <h4>Quota Exceeded Events</h4>
-                <span class="analytics-value">{{ analytics().quotaExceededEvents }}</span>
+                <span class="analytics-value">{{ analyticsData.quotaExceededEvents }}</span>
               </div>
             </div>
             
@@ -194,7 +194,7 @@
                 
                 <div class="backup-details">
                   <p><strong>Key:</strong> {{ backup.key }}</p>
-                  <p><strong>Size:</strong> {{ formatBytes(JSON.stringify(backup.data).length) }}</p>
+                  <p><strong>Size:</strong> {{ formatBytes(getJsonSize(backup.data)) }}</p>
                   <p><strong>Version:</strong> {{ backup.metadata.version }}</p>
                   @if (backup.metadata.backupId) {
                     <p><strong>Backup ID:</strong> {{ backup.metadata.backupId }}</p>
@@ -224,12 +224,12 @@
     <!-- Analytics Tab -->
     @if (activeTab() === 'analytics') {
       <section id="analytics-panel" class="tab-panel" role="tabpanel">
-        @if (analytics()) {
+        @if (analytics(); as analyticsData) {
           <div class="analytics-detailed">
             <h3>Operation Frequency</h3>
-            @if (Object.keys(analytics().operationFrequency).length > 0) {
+            @if (getObjectKeys(analyticsData.operationFrequency).length > 0) {
               <div class="frequency-list">
-                @for (entry of Object.entries(analytics().operationFrequency); track entry[0]) {
+                @for (entry of getObjectEntries(analyticsData.operationFrequency); track entry[0]) {
                   <div class="frequency-item">
                     <span class="key-name">{{ entry[0] }}</span>
                     <span class="key-count">{{ entry[1] }} operations</span>
@@ -240,10 +240,10 @@
               <p>No operation data available.</p>
             }
             
-            @if (Object.keys(analytics().backupSizeDistribution).length > 0) {
+            @if (getObjectKeys(analyticsData.backupSizeDistribution).length > 0) {
               <h3>Backup Size Distribution</h3>
               <div class="size-distribution">
-                @for (entry of Object.entries(analytics().backupSizeDistribution); track entry[0]) {
+                @for (entry of getObjectEntries(analyticsData.backupSizeDistribution); track entry[0]) {
                   <div class="size-item">
                     <span class="size-range">{{ entry[0] }}</span>
                     <span class="size-count">{{ entry[1] }} backups</span>
@@ -269,7 +269,7 @@
               <select 
                 id="recovery-strategy"
                 [(ngModel)]="recoveryOptions().strategy" 
-                (ngModelChange)="recoveryOptions.update(options => ({...options, strategy: $any}))"
+                (ngModelChange)="updateRecoveryStrategy($event)"
                 class="form-control"
               >
                 <option value="auto">Auto (Recommended)</option>
@@ -298,7 +298,7 @@
               <input 
                 type="text" 
                 placeholder="Enter key name and press Enter"
-                (keydown.enter)="addRecoveryKey(($event.target as HTMLInputElement).value); ($event.target as HTMLInputElement).value = ''"
+                (keydown)="handleRecoveryKeyPress($event)"
                 class="form-control"
               >
             </div>
@@ -330,7 +330,7 @@
                 <input 
                   type="checkbox" 
                   [(ngModel)]="exportOptions().includeBackups"
-                  (ngModelChange)="exportOptions.update(options => ({...options, includeBackups: $event}))"
+                  (ngModelChange)="updateExportOption('includeBackups', $event)"
                 >
                 Include Backups
               </label>
@@ -339,7 +339,7 @@
                 <input 
                   type="checkbox" 
                   [(ngModel)]="exportOptions().includeAnalytics"
-                  (ngModelChange)="exportOptions.update(options => ({...options, includeAnalytics: $event}))"
+                  (ngModelChange)="updateExportOption('includeAnalytics', $event)"
                 >
                 Include Analytics
               </label>

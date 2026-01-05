@@ -10,7 +10,7 @@ export interface User {
 
 export interface SecurityEvent {
   id: string;
-  type: 'XSS_ATTEMPT' | 'RATE_LIMIT_EXCEEDED' | 'AUTHENTICATION_FAILURE' | 'VALIDATION_FAILURE' | 'DATA_ACCESS';
+  type: 'XSS_ATTEMPT' | 'RATE_LIMIT_EXCEEDED' | 'AUTHENTICATION_FAILURE' | 'VALIDATION_FAILURE' | 'DATA_ACCESS' | 'DATA_RECOVERY';
   message: string;
   timestamp: Date;
   userId?: string;

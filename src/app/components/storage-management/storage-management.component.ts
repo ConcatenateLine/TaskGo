@@ -1,10 +1,10 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { LocalStorageService, StorageAnalytics, BackupSnapshot } from '../services/local-storage.service';
-import { DataRecoveryService, RecoveryResult } from '../services/data-recovery.service';
-import { StorageAnalyticsService } from '../services/storage-analytics.service';
-import { AuthService } from '../services/auth.service';
+import { LocalStorageService, StorageAnalytics, BackupSnapshot, StorageResult } from '../../shared/services/local-storage.service';
+import { DataRecoveryService, RecoveryResult } from '../../shared/services/data-recovery.service';
+import { StorageAnalyticsService, DetailedAnalytics } from '../../shared/services/storage-analytics.service';
+import { AuthService } from '../../shared/services/auth.service';
 
 @Component({
   selector: 'app-storage-management',
@@ -96,7 +96,7 @@ export class StorageManagementComponent implements OnInit {
     try {
       const result = await this.localStorageService.getStorageAnalytics();
       if (result.success) {
-        this.analytics.set(result.data);
+        this.analytics.set(result.data ?? null);
       }
     } catch (error) {
       console.error('Failed to load analytics:', error);
@@ -433,5 +433,68 @@ export class StorageManagementComponent implements OnInit {
    */
   selectBackup(backup: BackupSnapshot): void {
     this.selectedBackup.set(backup);
+  }
+
+  /**
+   * Update export options
+   */
+  updateExportOption(key: keyof ReturnType<typeof this.exportOptions>, value: boolean): void {
+    const current = this.exportOptions();
+    this.exportOptions.set({
+      ...current,
+      [key]: value
+    });
+  }
+
+  /**
+   * Update recovery strategy
+   */
+  updateRecoveryStrategy(strategy: 'auto' | 'manual' | 'conservative'): void {
+    const current = this.recoveryOptions();
+    this.recoveryOptions.set({
+      ...current,
+      strategy
+    });
+  }
+
+  /**
+   * Set active tab
+   */
+  setActiveTab(tab: string): void {
+    if (['overview', 'backups', 'analytics', 'recovery', 'export'].includes(tab)) {
+      this.activeTab.set(tab as any);
+    }
+  }
+
+  /**
+   * Get JSON string length for size calculation
+   */
+  getJsonSize(obj: any): number {
+    return JSON.stringify(obj).length;
+  }
+
+  /**
+   * Get object keys
+   */
+  getObjectKeys(obj: any): string[] {
+    return Object.keys(obj);
+  }
+
+  /**
+   * Get object entries
+   */
+  getObjectEntries(obj: any): [string, any][] {
+    return Object.entries(obj);
+  }
+
+  /**
+   * Handle input key press for recovery key addition
+   */
+  handleRecoveryKeyPress(event: KeyboardEvent): void {
+    const target = event.target as HTMLInputElement;
+    if (event.key === 'Enter' && target.value) {
+      this.addRecoveryKey(target.value);
+      target.value = '';
+    }
   }
 }
