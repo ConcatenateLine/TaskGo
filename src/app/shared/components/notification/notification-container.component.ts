@@ -10,7 +10,7 @@ import { slideInRight, slideOutRight } from '../../../animations/notification-an
   imports: [CommonModule, NotificationComponent],
   template: `
     <div class="notification-container" role="region" aria-label="Notifications">
-      @for (notification of notifications(); track notification.id; let i = $index) {
+      @for (notification of notificationsSignal(); track notification.id; let i = $index) {
         <div 
           class="notification-item"
           [style.z-index]="1000 + i"
@@ -83,10 +83,11 @@ export class NotificationContainerComponent {
   private notificationService = inject(NotificationService);
 
   readonly notifications = this.notificationService.notifications$;
+  readonly notificationsSignal = computed(() => this.notifications());
   readonly notificationAnimationStates = computed(() => {
     const states = new Map<string, 'enter' | 'exit'>();
     
-    this.notifications().forEach((notification: Notification) => {
+    this.notificationsSignal().forEach((notification: Notification) => {
       states.set(notification.id, 'enter');
     });
     
@@ -112,6 +113,6 @@ export class NotificationContainerComponent {
 
   // Utility method for testing and external access
   public hasNotifications(): boolean {
-    return this.notifications().length > 0;
+    return this.notificationsSignal().length > 0;
   }
 }

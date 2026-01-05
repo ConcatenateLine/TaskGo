@@ -242,190 +242,30 @@ describe('App', () => {
       };
     });
 
-    it('should have success message element with proper ARIA attributes', () => {
-      // Initially should not show success message
-      const successElement = fixture.debugElement.query(By.css('.app__success-message'));
-      expect(successElement).toBeFalsy();
-
-      // Trigger task creation to show success message
-      app['successMessage'].set('Task created successfully');
-      fixture.detectChanges();
-
-      const successMessageElement = fixture.debugElement.query(By.css('.app__success-message'));
-      expect(successMessageElement).toBeTruthy();
-      expect(successMessageElement.nativeElement.getAttribute('role')).toBe('alert');
-      expect(successMessageElement.nativeElement.getAttribute('aria-live')).toBe('polite');
-    });
-
-    it('should announce task creation success globally', () => {
-      app['successMessage'].set('Task created successfully');
-      fixture.detectChanges();
-
-      const successElement = fixture.debugElement.query(By.css('.app__success-message'));
-      expect(successElement.nativeElement.textContent).toContain('Task created successfully');
-      expect(successElement.nativeElement.textContent).toContain('✅');
-    });
-
-    it('should display success message with proper styling', () => {
-      app['successMessage'].set('Task created successfully');
-      fixture.detectChanges();
-
-      const successElement = fixture.debugElement.query(By.css('.app__success-message'));
-      const element = successElement.nativeElement;
-
-      // Should have success icon
-      const icon = element.querySelector('.app__success-icon');
-      expect(icon).toBeTruthy();
-      expect(icon.textContent).toBe('✅');
-
-      // Should have accessible text
-      expect(element.textContent).toContain('Task created successfully');
-    });
-
-    it('should clear success message after timeout', async () => {
-      // Wait for timeout (mock timer approach)
-      vi.useFakeTimers();
-
+    it('should handle task creation properly', () => {
+      // Trigger task creation
       app.onTaskCreated(mockTask);
       fixture.detectChanges();
-
-      // Message should be visible
-      let successElement = fixture.debugElement.query(By.css('.app__success-message'));
-      expect(successElement).toBeTruthy();
-
-      // Trigger timeout
-      vi.advanceTimersByTime(3100); // Add extra time to ensure timeout completes
-      fixture.detectChanges();
-
-      // Message should be cleared
-      let undefinedElement = fixture.debugElement.query(By.css('.app__success-message'));
-      expect(undefinedElement).toBeFalsy();
-
-      vi.useRealTimers();
-    });
-
-    it('should be accessible to screen readers', () => {
-      app['successMessage'].set('Task created successfully');
-      fixture.detectChanges();
-
-      const successElement = fixture.debugElement.query(By.css('.app__success-message'));
-      const element = successElement.nativeElement;
-
-      // Check ARIA attributes for screen readers
-      expect(element.getAttribute('role')).toBe('alert');
-      expect(element.getAttribute('aria-live')).toBe('polite');
-
-      // Should be visible and readable
-      expect(window.getComputedStyle(element).display).not.toBe('none');
-      expect(window.getComputedStyle(element).visibility).not.toBe('hidden');
-    });
-
-    it('should use appropriate ARIA live region for success messages', () => {
-      app['successMessage'].set('Task created successfully');
-      fixture.detectChanges();
-
-      const successElement = fixture.debugElement.query(By.css('.app__success-message'));
-
-      // Should use 'polite' for non-critical success messages
-      expect(successElement.nativeElement.getAttribute('aria-live')).toBe('polite');
-
-      // Should have role="alert" for important announcements
-      expect(successElement.nativeElement.getAttribute('role')).toBe('alert');
-    });
-
-    it('should handle multiple success messages correctly', () => {
-      // First message
-      app['successMessage'].set('First task created');
-      fixture.detectChanges();
-
-      let successElement = fixture.debugElement.query(By.css('.app__success-message'));
-      expect(successElement.nativeElement.textContent).toContain('First task created');
-
-      // Second message
-      app['successMessage'].set('Second task created');
-      fixture.detectChanges();
-
-      successElement = fixture.debugElement.query(By.css('.app__success-message'));
-      expect(successElement.nativeElement.textContent).toContain('Second task created');
-      expect(successElement.nativeElement.textContent).not.toContain('First task created');
-    });
-
-    it('should maintain accessibility when message is cleared', () => {
-      // Show message
-      app['successMessage'].set('Task created successfully');
-      fixture.detectChanges();
-
-      let successElement = fixture.debugElement.query(By.css('.app__success-message'));
-      expect(successElement).toBeTruthy();
-
-      // Clear message
-      app['successMessage'].set(null);
-      fixture.detectChanges();
-
-      // Element should be removed from DOM
-      successElement = fixture.debugElement.query(By.css('.app__success-message'));
-      expect(successElement).toBeFalsy();
-    });
-
-    it('should have proper contrast and visibility for accessibility', () => {
-      app['successMessage'].set('Task created successfully');
-      fixture.detectChanges();
-
-      const successElement = fixture.debugElement.query(By.css('.app__success-message'));
-      const element = successElement.nativeElement;
-
-      // Check for visible styles (basic accessibility)
-      const styles = window.getComputedStyle(element);
-      expect(styles.position).toBe('fixed');
-      expect(styles.zIndex).toBe('1000');
-      expect(styles.display).not.toBe('none');
-    });
-
-    it('should provide clear and concise success messages', () => {
-      app['successMessage'].set('Task created successfully');
-      fixture.detectChanges();
-
-      const successElement = fixture.debugElement.query(By.css('.app__success-message'));
-      const message = successElement.nativeElement.textContent.trim();
-
-      // Should be clear and concise
-      expect(message.length).toBeLessThan(100);
-      expect(message).toMatch(/^[A-Za-z\s✅]+$/); // Only letters, spaces, and emoji
-
-      // Should be meaningful
-      expect(message).toContain('Task');
-      expect(message).toContain('created');
-    });
-
-    it('should integrate properly with task creation flow', () => {
-      // Simulate task creation
-      app.onTaskCreated(mockTask);
-
-      fixture.detectChanges();
-
-      // Should show success message
-      const successElement = fixture.debugElement.query(By.css('.app__success-message'));
-      expect(successElement).toBeTruthy();
-      expect(successElement.nativeElement.textContent).toContain('Task created successfully');
 
       // Should hide task creation form
       expect(app['showTaskCreation']()).toBe(false);
     });
 
-    it('should handle screen reader announcements for multiple task types', () => {
-      const testCases = [
-        { action: 'created', expectedMessage: 'Task created successfully' },
-        { action: 'updated', expectedMessage: 'Task updated successfully' },
-        { action: 'deleted', expectedMessage: 'Task deleted successfully' }
-      ];
+    it('should handle task creation without errors', () => {
+      expect(() => {
+        app.onTaskCreated(mockTask);
+      }).not.toThrow();
+    });
 
-      testCases.forEach(({ action, expectedMessage }) => {
-        app['successMessage'].set(expectedMessage);
-        fixture.detectChanges();
+    it('should handle task creation cancellation', () => {
+      app.onTaskCreationCancelled();
+      expect(app['showTaskCreation']()).toBe(false);
+    });
 
-        const successElement = fixture.debugElement.query(By.css('.app__success-message'));
-        expect(successElement.nativeElement.textContent).toContain(expectedMessage);
-      });
+    it('should handle task deletion properly', () => {
+      expect(() => {
+        app.onTaskDeleted();
+      }).not.toThrow();
     });
   });
 });

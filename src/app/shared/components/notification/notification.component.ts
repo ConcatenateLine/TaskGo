@@ -8,35 +8,35 @@ import { NotificationService } from '../../services/notification.service';
   selector: 'app-notification',
   imports: [CommonModule],
   template: `
-    @if (notification(); as notif) {
+    @if (notification()) {
       <div 
         [@notificationState]="notificationState()"
         class="notification"
-        [class]="getNotificationClasses(notif)"
+        [class]="getNotificationClasses(notification()!)"
         role="alert"
-        [attr.aria-live]="getAriaLive(notif.type)"
+        [attr.aria-live]="getAriaLive(notification()!.type)"
         aria-atomic="true"
         (mouseenter)="onMouseEnter()"
         (mouseleave)="onMouseLeave()">
         
         <div class="notification__content">
           <span class="notification__icon" aria-hidden="true">
-            {{ getIcon(notif.type) }}
+            {{ getIcon(notification()!.type) }}
           </span>
           
           <span class="notification__message">
-            {{ notif.message }}
+            {{ notification()!.message }}
           </span>
         </div>
 
         <div class="notification__actions">
-          @if (notif.action) {
+          @if (notification()!.action) {
             <button 
               type="button"
               class="notification__action-btn"
-              (click)="onActionClick(notif.action.handler)"
-              [attr.aria-label]="notif.action.label">
-              {{ notif.action.label }}
+              (click)="onActionClick(notification()!.action!.handler)"
+              [attr.aria-label]="notification()!.action!.label">
+              {{ notification()!.action!.label }}
             </button>
           }
           
@@ -50,11 +50,11 @@ import { NotificationService } from '../../services/notification.service';
           </button>
         </div>
 
-          @if (showProgress() && notif.duration) {
+          @if (showProgress() && notification()!.duration) {
           <div class="notification__progress">
             <div 
               class="notification__progress-bar"
-              [style.animation-duration.ms]="notif.duration">
+              [style.animation-duration.ms]="notification()!.duration">
             </div>
           </div>
         }
@@ -280,7 +280,7 @@ import { NotificationService } from '../../services/notification.service';
 export class NotificationComponent {
   private notificationService = inject(NotificationService);
 
-  notification = input.required<Notification>();
+  notification = input<Notification | null>(null);
   dismissed = output<string>();
 
   private isHovered = false;
@@ -290,10 +290,13 @@ export class NotificationComponent {
   readonly showProgress = computed(() => !this.isHovered);
 
   onClose(): void {
+    const notification = this.notification();
+    if (!notification) return;
+    
     this.animationState = 'exiting';
     // Give animation time to complete before emitting
     setTimeout(() => {
-      this.dismissed.emit(this.notification()!.id);
+      this.dismissed.emit(notification.id);
     }, 250);
   }
 
@@ -311,6 +314,7 @@ export class NotificationComponent {
   }
 
   getNotificationClasses(notification: Notification): string {
+    if (!notification) return '';
     const baseClass = 'notification';
     const typeClass = `notification--${notification.type}`;
     
