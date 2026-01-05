@@ -1,0 +1,40 @@
+<nav class="app-navigation">
+  <div class="nav-brand">
+    <h1>TaskGo</h1>
+  </div>
+  
+  <div class="nav-links">
+    <button 
+      class="nav-link"
+      (click)="navigateToTasks()"
+      [class.active]="router.url === '/'"
+    >
+      📝 Tasks
+    </button>
+    
+    <button 
+      class="nav-link storage-link"
+      (click)="navigateToStorage()"
+      [class.active]="router.url === '/storage'"
+    >
+      <span class="storage-icon">💾</span>
+      <span>Storage</span>
+      <span 
+        class="health-indicator" 
+        [style.color]="getHealthStatusColor()"
+        [attr.title]="'Storage Status: ' + storageHealth().status"
+      >
+        {{ getHealthStatusIcon() }}
+      </span>
+    </button>
+  </div>
+  
+  <div class="nav-info">
+    @if (storageHealth().status !== 'healthy') {
+      <div class="storage-warning">
+        <span [style.color]="getHealthStatusColor()">⚠️</span>
+        Storage needs attention
+      </div>
+    }
+  </div>
+</nav>

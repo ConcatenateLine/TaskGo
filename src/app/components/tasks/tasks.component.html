@@ -1,0 +1,40 @@
+<div class="tasks-container">
+  <!-- Success Message -->
+  @if (successMessage()) {
+    <div class="success-message" role="alert" aria-live="polite">
+      <span class="success-icon">✅</span>
+      {{ successMessage() }}
+    </div>
+  }
+
+  <!-- Error Message -->
+  @if (errorMessage()) {
+    <div class="error-message" role="alert" aria-live="polite">
+      <span class="error-icon">❌</span>
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <!-- Task Creation Form -->
+  @if (showTaskCreation()) {
+    <app-task-creation-form 
+      (taskCreated)="onTaskCreated($event)" 
+      (cancelled)="onTaskCreationCancelled()" 
+    />
+  } @else {
+    <!-- Filters -->
+    <div class="filters-section">
+      <app-task-filter-tabs (filterChange)="onFilterChange($event)" />
+      <app-task-project-filter (filterChange)="onProjectFilterChange($event)" />
+    </div>
+    
+    <!-- Task List -->
+    <app-task-list 
+      [statusFilter]="currentFilter()" 
+      [projectFilter]="currentProjectFilter()" 
+      (createTaskRequested)="onCreateTaskRequested()" 
+      (taskDeleted)="onTaskDeleted()"
+      (actionError)="onActionError($event)" 
+    />
+  }
+</div>

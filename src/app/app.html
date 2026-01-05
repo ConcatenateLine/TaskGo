@@ -2,30 +2,27 @@
 @if (isLoading() || (!isAppReady() && !startupError())) {
   <app-startup-loader />
 } @else {
-  <!-- Notification Container -->
-  <app-notification-container />
+  <!-- Navigation -->
+  <app-navigation />
 
-  <header class="app-header">
-    <div class="app-header__content">
-      <h1 class="app-header__title">{{ title() }}</h1>
-      <p class="app-header__subtitle">Personal Task Manager</p>
-      @if (startupWarnings().length > 0 && !startupError()) {
-      <div class="app-header__warnings">
-        <span class="warning-icon">⚠️</span>
-        <span>{{ startupWarnings().length }} startup warning(s)</span>
+  <!-- Startup Error Message -->
+  @if (startupError()) {
+  <div class="app__startup-error" role="alert" aria-live="assertive">
+    <span class="app__error-icon">⚠️</span>
+    <div>
+      <strong>Startup Error:</strong> {{ startupError() }}
+      @if (startupWarnings().length > 0) {
+      <div class="startup-warnings">
+        @for (warning of startupWarnings(); track warning) {
+        <div class="warning-item">• {{ warning }}</div>
+        }
       </div>
       }
     </div>
-  </header>
+  </div>
+  }
 
   <main class="app-main">
-    @if (showTaskCreation()) {
-    <app-task-creation-form (taskCreated)="onTaskCreated($event)" (cancelled)="onTaskCreationCancelled()" />
-    } @else {
-    <app-task-filter-tabs (filterChange)="onFilterChange($event)" />
-    <app-task-project-filter (filterChange)="onProjectFilterChange($event)" />
-     <app-task-list [statusFilter]="currentFilter()" [projectFilter]="currentProjectFilter()" (createTaskRequested)="onCreateTaskRequested()" (taskDeleted)="onTaskDeleted()"
-        (actionError)="onActionError($event)" />
-    }
+    <router-outlet />
   </main>
 }
