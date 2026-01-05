@@ -5,6 +5,7 @@ import { ValidationService } from './validation.service';
 import { AuthService } from './auth.service';
 import { SecurityService } from './security.service';
 import { AutoSaveService } from './auto-save.service';
+import { LocalStorageService } from './local-storage.service';
 
 @Injectable({
   providedIn: 'root',
@@ -16,20 +17,48 @@ export class TaskService {
   private authService = inject(AuthService);
   private securityService = inject(SecurityService);
   private autoSaveService = inject(AutoSaveService);
+  private localStorageService = inject(LocalStorageService);
 
   constructor() {
     // Note: Data loading is now handled by AppStartupService via APP_INITIALIZER
     // This ensures proper startup sequence and error handling
   }
 
-  /**
-   * Load tasks from encrypted storage
-   */
-  private loadFromEncryptedStorage(): void {
+  async syncEncryptedStorage(): Promise<void> {
     try {
-      const encryptedData = this.cryptoService.getItem(this.cryptoService.getStorageKey());
-      if (encryptedData && Array.isArray(encryptedData)) {
-        this.tasks.set(encryptedData);
+      console.log('Syncing encrypted storage...');
+      const encryptedData = await this.localStorageService.getItem(
+        this.cryptoService.getStorageKey()
+      );
+
+      if (encryptedData) {
+        const decrypted = this.cryptoService.decrypt(encryptedData.data as string);
+        if (Array.isArray(decrypted)) {
+          this.tasks.set(decrypted);
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load tasks from encrypted storage:', error);
+      // Clear corrupted data and start fresh
+      this.cryptoService.clearTaskStorage();
+      this.tasks.set([]);
+    }
+  }
+
+  /**
+   * Load tasks from encrypted storage (legacy method, kept for backward compatibility)
+   */
+  private async loadFromEncryptedStorage(): Promise<void> {
+    try {
+      const encryptedData = await this.localStorageService.getItem(
+        this.cryptoService.getStorageKey()
+      );
+
+      if (encryptedData) {
+        const decrypted = this.cryptoService.decrypt(encryptedData.data as string);
+        if (Array.isArray(decrypted)) {
+          this.tasks.set(decrypted);
+        }
       }
     } catch (error) {
       console.warn('Failed to load tasks from encrypted storage:', error);
@@ -42,10 +71,18 @@ export class TaskService {
   /**
    * Save tasks to encrypted storage
    */
-  private saveToEncryptedStorage(): void {
+  private async saveToEncryptedStorage(operation: 'create' | 'update' | 'delete'): Promise<void> {
     try {
       const tasks = this.tasks();
-      this.cryptoService.setItem(this.cryptoService.getStorageKey(), tasks);
+      const encrypted = this.cryptoService.encrypt(tasks);
+      await this.localStorageService.setItem(
+        this.cryptoService.getStorageKey(),
+        encrypted,
+        operation
+      );
+
+      // Keep the old storage method as backup for review integration - temporary measure
+      // this.cryptoService.setItem(this.cryptoService.getStorageKey(), encrypted);
     } catch (error) {
       console.error('Failed to save tasks to encrypted storage:', error);
     }
@@ -117,7 +154,13 @@ export class TaskService {
   /**
    * Get task counts by project
    */
-  getTaskCountsByProject(): { all: number; Personal: number; Work: number; Study: number; General: number } {
+  getTaskCountsByProject(): {
+    all: number;
+    Personal: number;
+    Work: number;
+    Study: number;
+    General: number;
+  } {
     const tasks = this.getTasks();
     return {
       all: tasks.length,
@@ -240,12 +283,12 @@ export class TaskService {
 
     const currentTasks = this.tasks();
     this.tasks.update((tasks) => [...tasks, newTask]);
-    
-    // Queue auto-save operation (manual from TaskService perspective)
-    this.autoSaveService.queueTaskCreation(newTask, currentTasks, 'manual');
-    
+
+    // Queue auto-save operation
+    this.autoSaveService.queueTaskCreation(newTask, currentTasks);
+
     // Keep existing encrypted storage as backup
-    this.saveToEncryptedStorage();
+    this.saveToEncryptedStorage('create');
 
     // Log security event
     this.authService.logSecurityEvent({
@@ -343,7 +386,7 @@ export class TaskService {
     this.autoSaveService.queueTaskUpdate(updatedTask, currentTasks, 'manual');
 
     // Keep existing encrypted storage as backup
-    this.saveToEncryptedStorage();
+    this.saveToEncryptedStorage('update');
 
     // Log security event
     this.authService.logSecurityEvent({
@@ -394,13 +437,13 @@ export class TaskService {
     }
 
     this.tasks.update((currentTasks) => currentTasks.filter((task) => task.id !== id));
-    
+
     // Queue auto-save operation with updated tasks (after deletion)
     const updatedTasks = this.tasks();
     this.autoSaveService.queueTaskDeletion(id, updatedTasks, 'manual');
 
     // Keep existing encrypted storage as backup
-    this.saveToEncryptedStorage();
+    this.saveToEncryptedStorage('delete');
 
     // Log security event
     this.authService.logSecurityEvent({
@@ -416,14 +459,14 @@ export class TaskService {
   /**
    * Initialize with mock data for development
    */
-  initializeMockData(): void {
+  async initializeMockData(): Promise<void> {
     // Initialize with anonymous user for development
     if (!this.authService.isAuthenticated()) {
       this.authService.createAnonymousUser();
     }
 
     // Load existing data first
-    this.loadFromEncryptedStorage();
+    await this.loadFromEncryptedStorage();
 
     // Only initialize with mock data if empty or contains invalid data
     const currentTasks = this.tasks();
@@ -475,7 +518,7 @@ export class TaskService {
       ];
 
       this.tasks.set(mockTasks);
-      this.saveToEncryptedStorage();
+      this.saveToEncryptedStorage('create');
     }
   }
 
@@ -484,7 +527,7 @@ export class TaskService {
    */
   clearTasks(): void {
     this.tasks.set([]);
-    this.saveToEncryptedStorage();
+    this.saveToEncryptedStorage('delete');
   }
 
   /**
@@ -604,7 +647,7 @@ export class TaskService {
       this.autoSaveService.queueTaskUpdate(updatedTask, currentTasks, 'manual');
 
       // Save to encrypted storage as backup
-      this.saveToEncryptedStorage();
+      this.saveToEncryptedStorage('update');
 
       // Log security event
       this.authService.logSecurityEvent({
@@ -617,7 +660,10 @@ export class TaskService {
       return updatedTask;
     } catch (error: any) {
       // Re-throw known errors (rate limit and invalid status)
-      if (error.message && (error.message.includes('Rate limit exceeded') || error.message.includes('Invalid status'))) {
+      if (
+        error.message &&
+        (error.message.includes('Rate limit exceeded') || error.message.includes('Invalid status'))
+      ) {
         throw error;
       }
 

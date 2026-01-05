@@ -1,5 +1,10 @@
 import { Injectable, inject } from '@angular/core';
-import { LocalStorageService, StorageError, StorageResult, BackupSnapshot } from './local-storage.service';
+import {
+  LocalStorageService,
+  StorageError,
+  StorageResult,
+  BackupSnapshot,
+} from './local-storage.service';
 import { Task } from '../models/task.model';
 import { AuthService } from './auth.service';
 
@@ -48,7 +53,7 @@ export interface RecoverySession {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class DataRecoveryService {
   private localStorageService = inject(LocalStorageService);
@@ -58,7 +63,7 @@ export class DataRecoveryService {
     strategy: 'auto',
     prioritizeBackups: true,
     requireValidation: true,
-    maxRecoveryAttempts: 3
+    maxRecoveryAttempts: 3,
   };
 
   private activeSessions = new Map<string, RecoverySession>();
@@ -97,8 +102,8 @@ export class DataRecoveryService {
         total: 0,
         recovered: 0,
         failed: 0,
-        warnings: 0
-      }
+        warnings: 0,
+      },
     };
 
     this.activeSessions.set(sessionId, session);
@@ -117,13 +122,13 @@ export class DataRecoveryService {
     session.keysProcessed.push(key);
     session.results.push(result);
     session.summary.total++;
-    
+
     if (result.success) {
       session.summary.recovered++;
     } else {
       session.summary.failed++;
     }
-    
+
     if (result.warnings.length > 0) {
       session.summary.warnings++;
     }
@@ -166,7 +171,7 @@ export class DataRecoveryService {
 
       return {
         success: true,
-        data: reports
+        data: reports,
       };
     } catch (error) {
       return {
@@ -174,8 +179,8 @@ export class DataRecoveryService {
         error: {
           name: 'UnknownError',
           message: 'Integrity check failed',
-          isStorageDisabled: false
-        } as StorageError
+          isStorageDisabled: false,
+        } as StorageError,
       };
     }
   }
@@ -190,21 +195,21 @@ export class DataRecoveryService {
       errors: [],
       warnings: [],
       availableBackups: 0,
-      recommendedAction: 'none'
+      recommendedAction: 'none',
     };
 
     try {
       // Try to get data
       const dataResult = await this.localStorageService.getItem(key);
-      
+
       if (!dataResult.success) {
         report.isValid = false;
         report.errors.push(`Failed to read data: ${dataResult.error?.message || 'Unknown error'}`);
-        
+
         if (dataResult.error?.name === 'CorruptionError') {
           report.corruptionType = 'structure';
         }
-        
+
         report.recommendedAction = 'restore_backup';
       } else {
         // Validate data structure
@@ -221,10 +226,10 @@ export class DataRecoveryService {
       const backupHistory = await this.localStorageService.getBackupHistory(key);
       if (backupHistory.success) {
         report.availableBackups = backupHistory.data!.length;
-        
+
         if (backupHistory.data!.length > 0) {
           report.lastValidBackup = backupHistory.data![0];
-          
+
           if (report.errors.length > 0 && report.availableBackups > 0) {
             report.recommendedAction = 'restore_backup';
           }
@@ -234,10 +239,11 @@ export class DataRecoveryService {
       if (report.errors.length === 0 && report.warnings.length > 0) {
         report.recommendedAction = 'manual_review';
       }
-
     } catch (error) {
       report.isValid = false;
-      report.errors.push(`Integrity check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      report.errors.push(
+        `Integrity check failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
       report.recommendedAction = 'manual_review';
     }
 
@@ -247,7 +253,10 @@ export class DataRecoveryService {
   /**
    * Validate data structure based on key type
    */
-  private validateDataStructure(key: string, data: unknown): { isValid: boolean; errors: string[]; warnings: string[] } {
+  private validateDataStructure(
+    key: string,
+    data: unknown
+  ): { isValid: boolean; errors: string[]; warnings: string[] } {
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -266,20 +275,26 @@ export class DataRecoveryService {
           break;
       }
     } catch (error) {
-      errors.push(`Structure validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      errors.push(
+        `Structure validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
 
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
   /**
    * Validate task list structure
    */
-  private validateTaskList(data: unknown): { isValid: boolean; errors: string[]; warnings: string[] } {
+  private validateTaskList(data: unknown): {
+    isValid: boolean;
+    errors: string[];
+    warnings: string[];
+  } {
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -311,14 +326,18 @@ export class DataRecoveryService {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
   /**
    * Validate single task structure
    */
-  private validateSingleTask(data: unknown): { isValid: boolean; errors: string[]; warnings: string[] } {
+  private validateSingleTask(data: unknown): {
+    isValid: boolean;
+    errors: string[];
+    warnings: string[];
+  } {
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -380,7 +399,7 @@ export class DataRecoveryService {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -396,30 +415,33 @@ export class DataRecoveryService {
   /**
    * Perform data recovery with specified options
    */
-  async performRecovery(key: string, options: Partial<RecoveryOptions> = {}): Promise<StorageResult<RecoveryResult>> {
+  async performRecovery(
+    key: string,
+    options: Partial<RecoveryOptions> = {}
+  ): Promise<StorageResult<RecoveryResult>> {
     const startTime = Date.now();
     const finalOptions = { ...this.DEFAULT_OPTIONS, ...options };
-    
+
     const result: RecoveryResult = {
       success: false,
       strategy: finalOptions.strategy,
       attempts: 0,
       errors: [],
       warnings: [],
-      recoveryTime: 0
+      recoveryTime: 0,
     };
 
     try {
       // First, check integrity
       const integrityReport = await this.checkKeyIntegrity(key);
-      
+
       if (integrityReport.isValid) {
         result.success = true;
         result.warnings.push('Data is already valid, no recovery needed');
         result.recoveryTime = Date.now() - startTime;
         return {
           success: true,
-          data: result
+          data: result,
         };
       }
 
@@ -430,22 +452,28 @@ export class DataRecoveryService {
         case 'manual':
           return await this.performManualRecovery(key, integrityReport, finalOptions, startTime);
         case 'conservative':
-          return await this.performConservativeRecovery(key, integrityReport, finalOptions, startTime);
+          return await this.performConservativeRecovery(
+            key,
+            integrityReport,
+            finalOptions,
+            startTime
+          );
         default:
           throw new Error(`Unknown recovery strategy: ${finalOptions.strategy}`);
       }
-
     } catch (error) {
-      result.errors.push(`Recovery failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      result.errors.push(
+        `Recovery failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
       result.recoveryTime = Date.now() - startTime;
-      
+
       return {
         success: false,
         error: {
           name: 'RecoveryError',
           message: result.errors.join('; '),
-          isRecoveryError: true
-        } as StorageError
+          isRecoveryError: true,
+        } as StorageError,
       };
     }
   }
@@ -454,9 +482,9 @@ export class DataRecoveryService {
    * Perform automatic recovery using best available backup
    */
   private async performAutoRecovery(
-    key: string, 
-    integrityReport: DataIntegrityReport, 
-    options: RecoveryOptions, 
+    key: string,
+    integrityReport: DataIntegrityReport,
+    options: RecoveryOptions,
     startTime: number
   ): Promise<StorageResult<RecoveryResult>> {
     const result: RecoveryResult = {
@@ -465,34 +493,40 @@ export class DataRecoveryService {
       attempts: 1,
       errors: [...integrityReport.errors],
       warnings: [...integrityReport.warnings],
-      recoveryTime: 0
+      recoveryTime: 0,
     };
 
     try {
       if (integrityReport.lastValidBackup) {
         // Try to restore from the latest valid backup
-        const restoreResult = await this.localStorageService.restoreFromBackup(key, integrityReport.lastValidBackup.id);
-        
+        const restoreResult = await this.localStorageService.restoreFromBackup(
+          key,
+          integrityReport.lastValidBackup.id
+        );
+
         if (restoreResult.success) {
           result.success = true;
           result.backupUsed = integrityReport.lastValidBackup;
           result.warnings.push(`Auto-recovered from backup ${integrityReport.lastValidBackup.id}`);
         } else {
-          result.errors.push(`Failed to restore from backup: ${restoreResult.error?.message || 'Unknown error'}`);
+          result.errors.push(
+            `Failed to restore from backup: ${restoreResult.error?.message || 'Unknown error'}`
+          );
         }
       } else {
         result.errors.push('No valid backups available for auto-recovery');
       }
-
     } catch (error) {
-      result.errors.push(`Auto-recovery failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      result.errors.push(
+        `Auto-recovery failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
 
     result.recoveryTime = Date.now() - startTime;
-    
+
     return {
       success: result.success,
-      data: result
+      data: result,
     };
   }
 
@@ -500,9 +534,9 @@ export class DataRecoveryService {
    * Perform manual recovery (requires user intervention)
    */
   private async performManualRecovery(
-    key: string, 
-    integrityReport: DataIntegrityReport, 
-    options: RecoveryOptions, 
+    key: string,
+    integrityReport: DataIntegrityReport,
+    options: RecoveryOptions,
     startTime: number
   ): Promise<StorageResult<RecoveryResult>> {
     const result: RecoveryResult = {
@@ -511,7 +545,7 @@ export class DataRecoveryService {
       attempts: 1,
       errors: [...integrityReport.errors],
       warnings: [...integrityReport.warnings],
-      recoveryTime: 0
+      recoveryTime: 0,
     };
 
     // Manual recovery requires user to choose backup
@@ -520,14 +554,14 @@ export class DataRecoveryService {
     result.errors.push('Manual recovery not implemented - requires user interface');
 
     result.recoveryTime = Date.now() - startTime;
-    
+
     return {
       success: false,
       error: {
         name: 'RecoveryError',
         message: 'Manual recovery requires user intervention',
-        isRecoveryError: true
-      } as StorageError
+        isRecoveryError: true,
+      } as StorageError,
     };
   }
 
@@ -535,9 +569,9 @@ export class DataRecoveryService {
    * Perform conservative recovery (only if absolutely safe)
    */
   private async performConservativeRecovery(
-    key: string, 
-    integrityReport: DataIntegrityReport, 
-    options: RecoveryOptions, 
+    key: string,
+    integrityReport: DataIntegrityReport,
+    options: RecoveryOptions,
     startTime: number
   ): Promise<StorageResult<RecoveryResult>> {
     const result: RecoveryResult = {
@@ -546,63 +580,74 @@ export class DataRecoveryService {
       attempts: 1,
       errors: [...integrityReport.errors],
       warnings: [...integrityReport.warnings],
-      recoveryTime: 0
+      recoveryTime: 0,
     };
 
     // Conservative recovery only proceeds if there are no structural errors
-    const hasStructuralErrors = integrityReport.errors.some(error => 
-      error.includes('structure') || error.includes('must have') || error.includes('Invalid')
+    const hasStructuralErrors = integrityReport.errors.some(
+      (error) =>
+        error.includes('structure') || error.includes('must have') || error.includes('Invalid')
     );
 
     if (hasStructuralErrors) {
       result.errors.push('Conservative recovery aborted: structural errors detected');
       result.recoveryTime = Date.now() - startTime;
-      
+
       return {
         success: false,
         error: {
           name: 'RecoveryError',
           message: 'Conservative recovery aborted due to structural errors',
-          isRecoveryError: true
-        } as StorageError
+          isRecoveryError: true,
+        } as StorageError,
       };
     }
 
     // Only proceed with backup restoration if absolutely necessary
     if (integrityReport.recommendedAction === 'restore_backup' && integrityReport.lastValidBackup) {
-      const restoreResult = await this.localStorageService.restoreFromBackup(key, integrityReport.lastValidBackup.id);
-      
+      const restoreResult = await this.localStorageService.restoreFromBackup(
+        key,
+        integrityReport.lastValidBackup.id
+      );
+
       if (restoreResult.success) {
         result.success = true;
         result.backupUsed = integrityReport.lastValidBackup;
-        result.warnings.push(`Conservative recovery: restored from backup ${integrityReport.lastValidBackup.id}`);
+        result.warnings.push(
+          `Conservative recovery: restored from backup ${integrityReport.lastValidBackup.id}`
+        );
       } else {
-        result.errors.push(`Conservative recovery failed: ${restoreResult.error?.message || 'Unknown error'}`);
+        result.errors.push(
+          `Conservative recovery failed: ${restoreResult.error?.message || 'Unknown error'}`
+        );
       }
     } else {
       result.errors.push('Conservative recovery: no safe recovery path available');
     }
 
     result.recoveryTime = Date.now() - startTime;
-    
+
     return {
       success: result.success,
-      data: result
+      data: result,
     };
   }
 
   /**
    * Batch recovery for multiple keys
    */
-  async performBatchRecovery(keys: string[], options: Partial<RecoveryOptions> = {}): Promise<StorageResult<RecoverySession>> {
+  async performBatchRecovery(
+    keys: string[],
+    options: Partial<RecoveryOptions> = {}
+  ): Promise<StorageResult<RecoverySession>> {
     const session = this.createRecoverySession();
     const finalOptions = { ...this.DEFAULT_OPTIONS, ...options };
 
     try {
       for (const key of keys) {
         const recoveryResult = await this.performRecovery(key, finalOptions);
-        
-        const result: RecoveryResult = recoveryResult.success 
+
+        const result: RecoveryResult = recoveryResult.success
           ? recoveryResult.data!
           : {
               success: false,
@@ -610,30 +655,31 @@ export class DataRecoveryService {
               attempts: 0,
               errors: [recoveryResult.error?.message || 'Unknown error'],
               warnings: [],
-              recoveryTime: 0
+              recoveryTime: 0,
             };
 
         this.updateSession(session.id, key, result);
       }
 
       const completedSession = this.completeSession(session.id);
-      
+
       return {
         success: completedSession.status === 'completed',
-        data: completedSession
+        data: completedSession,
       };
-
     } catch (error) {
       const completedSession = this.completeSession(session.id);
-      
+
       return {
         success: false,
         error: {
           name: 'RecoveryError',
-          message: `Batch recovery failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          isRecoveryError: true
+          message: `Batch recovery failed: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`,
+          isRecoveryError: true,
         } as StorageError,
-        data: completedSession
+        data: completedSession,
       };
     } finally {
       this.activeSessions.delete(session.id);
@@ -655,7 +701,7 @@ export class DataRecoveryService {
     if (session && session.status === 'in_progress') {
       session.status = 'failed';
       session.endTime = Date.now();
-      
+
       this.authService.logSecurityEvent({
         type: 'DATA_RECOVERY',
         message: `Recovery session ${session.id} cancelled by user`,
@@ -666,23 +712,25 @@ export class DataRecoveryService {
       this.activeSessions.delete(sessionId);
       return true;
     }
-    
+
     return false;
   }
 
   /**
    * Get recovery recommendations based on analysis
    */
-  async getRecoveryRecommendations(keys: string[]): Promise<StorageResult<{
-    overall: 'healthy' | 'degraded' | 'critical';
-    recommendations: string[];
-    urgency: 'low' | 'medium' | 'high' | 'critical';
-    estimatedRecoveryTime: number;
-    autoRecoveryPossible: boolean;
-  }>> {
+  async getRecoveryRecommendations(keys: string[]): Promise<
+    StorageResult<{
+      overall: 'healthy' | 'degraded' | 'critical';
+      recommendations: string[];
+      urgency: 'low' | 'medium' | 'high' | 'critical';
+      estimatedRecoveryTime: number;
+      autoRecoveryPossible: boolean;
+    }>
+  > {
     try {
       const integrityReports = await this.performIntegrityCheck(keys);
-      
+
       if (!integrityReports.success) {
         throw new Error('Failed to analyze data integrity');
       }
@@ -690,8 +738,12 @@ export class DataRecoveryService {
       const reports = integrityReports.data!;
       const totalKeys = reports.length;
       const validKeys = reports.filter((r: DataIntegrityReport) => r.isValid).length;
-      const keysWithBackups = reports.filter((r: DataIntegrityReport) => r.availableBackups > 0).length;
-      const structuralErrors = reports.filter((r: DataIntegrityReport) => r.corruptionType === 'structure').length;
+      const keysWithBackups = reports.filter(
+        (r: DataIntegrityReport) => r.availableBackups > 0
+      ).length;
+      const structuralErrors = reports.filter(
+        (r: DataIntegrityReport) => r.corruptionType === 'structure'
+      ).length;
 
       let overall: 'healthy' | 'degraded' | 'critical';
       let urgency: 'low' | 'medium' | 'high' | 'critical';
@@ -712,7 +764,9 @@ export class DataRecoveryService {
       }
 
       if (structuralErrors > 0) {
-        recommendations.push(`${structuralErrors} keys have structural errors requiring manual intervention`);
+        recommendations.push(
+          `${structuralErrors} keys have structural errors requiring manual intervention`
+        );
         urgency = 'critical';
       }
 
@@ -720,7 +774,7 @@ export class DataRecoveryService {
         recommendations.push('Some corrupted data has no available backups');
       }
 
-      const autoRecoveryPossible = keysWithBackups >= (totalKeys - validKeys);
+      const autoRecoveryPossible = keysWithBackups >= totalKeys - validKeys;
       const estimatedRecoveryTime = Math.max(totalKeys * 100, 1000); // Estimate 100ms per key, minimum 1 second
 
       return {
@@ -730,18 +784,19 @@ export class DataRecoveryService {
           recommendations,
           urgency,
           estimatedRecoveryTime,
-          autoRecoveryPossible
-        }
+          autoRecoveryPossible,
+        },
       };
-
     } catch (error) {
       return {
         success: false,
         error: {
           name: 'RecoveryError',
-          message: `Failed to get recommendations: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          isRecoveryError: true
-        } as StorageError
+          message: `Failed to get recommendations: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`,
+          isRecoveryError: true,
+        } as StorageError,
       };
     }
   }

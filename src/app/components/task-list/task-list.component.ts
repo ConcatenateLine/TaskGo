@@ -1,4 +1,15 @@
-import { Component, input, computed, ChangeDetectionStrategy, signal, inject, SecurityContext, output, EventEmitter, DoCheck } from '@angular/core';
+import {
+  Component,
+  input,
+  computed,
+  ChangeDetectionStrategy,
+  signal,
+  inject,
+  SecurityContext,
+  output,
+  EventEmitter,
+  DoCheck,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Task, PRIORITY_COLORS, PROJECT_COLORS, TaskStatus } from '../../shared/models/task.model';
@@ -17,10 +28,10 @@ import { FocusTrapDirective } from '../../shared/directives/focus-trap.directive
   styleUrls: ['./task-list.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
-    class: 'task-list'
-  }
+    class: 'task-list',
+  },
 })
-export class TaskListComponent implements DoCheck{
+export class TaskListComponent implements DoCheck {
   private taskService = inject(TaskService);
   private validationService = inject(ValidationService);
   private authService = inject(AuthService);
@@ -43,6 +54,11 @@ export class TaskListComponent implements DoCheck{
     if (typeof window !== 'undefined' && ngDevMode) {
       (window as any).taskListComponent = this;
     }
+    
+    // Initialize encrypted storage sync
+    this.taskService.syncEncryptedStorage().catch(error => {
+      console.error('Failed to sync encrypted storage:', error);
+    });
   }
 
   ngDoCheck(): void {
@@ -78,7 +94,7 @@ export class TaskListComponent implements DoCheck{
           timestamp: new Date(),
           userId: this.authService.getUserContext()?.userId,
           event: error.event,
-          severity: error.severity || 'MEDIUM'
+          severity: error.severity || 'MEDIUM',
         });
       }
 
@@ -96,8 +112,8 @@ export class TaskListComponent implements DoCheck{
       return [];
     }
     // Create a stable sort to avoid reference changes
-    return [...tasks].sort((a: Task, b: Task) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    return [...tasks].sort(
+      (a: Task, b: Task) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   });
 
@@ -109,12 +125,14 @@ export class TaskListComponent implements DoCheck{
 
     const counts = this.taskService.getTaskCounts();
 
-    return counts || {
-      todo: 0,
-      inProgress: 0,
-      done: 0,
-      total: 0
-    };
+    return (
+      counts || {
+        todo: 0,
+        inProgress: 0,
+        done: 0,
+        total: 0,
+      }
+    );
   });
 
   // Method to trigger re-computation for tests when mocks change
@@ -129,7 +147,7 @@ export class TaskListComponent implements DoCheck{
     return {
       forceRefresh: () => this.forceRefresh(),
       getTasks: () => this.sortedTasks(),
-      getTaskService: () => this.taskService
+      getTaskService: () => this.taskService,
     };
   }
 
@@ -165,9 +183,8 @@ export class TaskListComponent implements DoCheck{
   getSafeAriaLabel(task: Task, action: string): string {
     // Sanitize and truncate for accessibility
     const sanitizedTitle = this.getSanitizedTitle(task);
-    const truncatedTitle = sanitizedTitle.length > 50
-      ? sanitizedTitle.substring(0, 50) + '...'
-      : sanitizedTitle;
+    const truncatedTitle =
+      sanitizedTitle.length > 50 ? sanitizedTitle.substring(0, 50) + '...' : sanitizedTitle;
 
     // Remove sensitive patterns from ARIA labels
     let safeTitle = truncatedTitle;
@@ -192,8 +209,8 @@ export class TaskListComponent implements DoCheck{
   }
 
   /**
-    * Handle very long titles safely
-    */
+   * Handle very long titles safely
+   */
   getTruncatedTitle(task: Task, maxLength: number = 500): string {
     const sanitized = this.getSanitizedTitle(task);
     if (sanitized.length > maxLength) {
@@ -201,8 +218,6 @@ export class TaskListComponent implements DoCheck{
     }
     return sanitized;
   }
-
-
 
   /**
    * Get CSS classes for project badge (no inline styles)
@@ -212,24 +227,24 @@ export class TaskListComponent implements DoCheck{
   }
 
   /**
-    * Get inline style for priority badge color
-    */
+   * Get inline style for priority badge color
+   */
   getPriorityBadgeStyle(priority: Task['priority']): { [key: string]: string } {
     return {
       'background-color': PRIORITY_COLORS[priority],
-      'color': '#ffffff',
-      'padding': '2px 8px',
+      color: '#ffffff',
+      padding: '2px 8px',
       'border-radius': '12px',
       'font-size': '12px',
-      'font-weight': '500'
+      'font-weight': '500',
     };
   }
 
   getStatusDisplay(status: Task['status']): string {
     const statusMap: Record<Task['status'], string> = {
-      'TODO': 'To Do',
-      'IN_PROGRESS': 'In Progress',
-      'DONE': 'Done'
+      TODO: 'To Do',
+      IN_PROGRESS: 'In Progress',
+      DONE: 'Done',
     };
     return statusMap[status] || status;
   }
@@ -254,7 +269,7 @@ export class TaskListComponent implements DoCheck{
     return new Intl.DateTimeFormat('en-US', {
       month: 'short',
       day: 'numeric',
-      year: 'numeric'
+      year: 'numeric',
     }).format(safeDate);
   }
 
@@ -308,7 +323,7 @@ export class TaskListComponent implements DoCheck{
       type: 'DATA_ACCESS',
       message: `Task delete attempted: ${taskId}`,
       timestamp: new Date(),
-      userId: this.authService.getUserContext()?.userId
+      userId: this.authService.getUserContext()?.userId,
     });
   }
 
@@ -328,7 +343,7 @@ export class TaskListComponent implements DoCheck{
     if (!taskId) return null;
 
     const tasks = this.sortedTasks();
-    return tasks.find(task => task.id === taskId) || null;
+    return tasks.find((task) => task.id === taskId) || null;
   }
 
   /**
@@ -362,7 +377,7 @@ export class TaskListComponent implements DoCheck{
           type: 'RATE_LIMIT_EXCEEDED',
           message: 'Delete rate limit exceeded',
           timestamp: new Date(),
-          userId: this.authService.getUserContext()?.userId
+          userId: this.authService.getUserContext()?.userId,
         });
         return false;
       }
@@ -390,7 +405,7 @@ export class TaskListComponent implements DoCheck{
               type: 'DATA_ACCESS',
               message: `Task deleted: ${taskId}`,
               timestamp: new Date(),
-              userId: this.authService.getUserContext()?.userId
+              userId: this.authService.getUserContext()?.userId,
             });
 
             // Refresh task list

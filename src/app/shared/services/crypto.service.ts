@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class CryptoService {
   private readonly STORAGE_KEY = 'taskgo_tasks';
@@ -51,12 +51,10 @@ export class CryptoService {
     // Convert text to UTF-8 bytes first
     const textBytes = new TextEncoder().encode(text);
     const keyBytes = new TextEncoder().encode(key);
-    
+
     // Perform XOR on each byte
-    const encryptedBytes = textBytes.map((byte, i) => 
-      byte ^ keyBytes[i % keyBytes.length]
-    );
-    
+    const encryptedBytes = textBytes.map((byte, i) => byte ^ keyBytes[i % keyBytes.length]);
+
     // Convert to base64 string to ensure JSON-safe characters
     return btoa(String.fromCharCode(...encryptedBytes));
   }
@@ -68,16 +66,16 @@ export class CryptoService {
     try {
       // Decode base64 to get encrypted bytes
       const encryptedBytes = new Uint8Array(
-        atob(encrypted).split('').map(char => char.charCodeAt(0))
+        atob(encrypted)
+          .split('')
+          .map((char) => char.charCodeAt(0))
       );
-      
+
       const keyBytes = new TextEncoder().encode(key);
-      
+
       // Perform XOR to decrypt
-      const decryptedBytes = encryptedBytes.map((byte, i) => 
-        byte ^ keyBytes[i % keyBytes.length]
-      );
-      
+      const decryptedBytes = encryptedBytes.map((byte, i) => byte ^ keyBytes[i % keyBytes.length]);
+
       // Convert bytes back to UTF-8 string
       return new TextDecoder().decode(decryptedBytes);
     } catch (error) {
@@ -87,8 +85,8 @@ export class CryptoService {
   }
 
   /**
-    * Encrypt data before localStorage storage
-    */
+   * Encrypt data before localStorage storage
+   */
   encrypt(data: any): string {
     try {
       const jsonString = JSON.stringify(data);
@@ -96,7 +94,7 @@ export class CryptoService {
       // Store as JSON object with encrypted payload for JSON.parse compatibility
       const encryptedContainer = {
         version: this.ENCRYPTION_VERSION,
-        data: encrypted
+        data: encrypted,
       };
       return JSON.stringify(encryptedContainer);
     } catch (error) {
@@ -107,8 +105,8 @@ export class CryptoService {
   }
 
   /**
-    * Decrypt data from localStorage
-    */
+   * Decrypt data from localStorage
+   */
   decrypt<T = any>(encryptedData: string): T | null {
     try {
       // Try to parse as JSON first (new format)
@@ -131,7 +129,12 @@ export class CryptoService {
       }
 
       // Handle new JSON container format
-      if (parsed && typeof parsed === 'object' && parsed.version === this.ENCRYPTION_VERSION && parsed.data) {
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        parsed.version === this.ENCRYPTION_VERSION &&
+        parsed.data
+      ) {
         const decrypted = this.xorDecrypt(parsed.data, this.encryptionKey);
         return JSON.parse(decrypted) as T;
       }

@@ -2,7 +2,16 @@ import { Injectable, inject } from '@angular/core';
 import { Task } from '../models/task.model';
 
 export interface StorageError extends Error {
-  name: 'QuotaExceededError' | 'SecurityError' | 'StorageDisabledError' | 'SerializationError' | 'ValidationError' | 'UnknownError' | 'CorruptionError' | 'BackupError' | 'RecoveryError';
+  name:
+    | 'QuotaExceededError'
+    | 'SecurityError'
+    | 'StorageDisabledError'
+    | 'SerializationError'
+    | 'ValidationError'
+    | 'UnknownError'
+    | 'CorruptionError'
+    | 'BackupError'
+    | 'RecoveryError';
   isQuotaExceeded?: boolean;
   isSecurityError?: boolean;
   isStorageDisabled?: boolean;
@@ -82,7 +91,7 @@ export interface QuotaMonitor {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class LocalStorageService {
   private readonly CONFIG: StorageConfig = {
@@ -94,7 +103,7 @@ export class LocalStorageService {
     enableCompression: false,
     enableCRC32: true,
     enableBackups: true,
-    enableAnalytics: true
+    enableAnalytics: true,
   };
 
   private readonly BACKUP_CONFIG: BackupConfig = {
@@ -102,14 +111,14 @@ export class LocalStorageService {
     maxBackups: 10,
     retentionDays: 30,
     compressionEnabled: false,
-    cleanupThreshold: 80
+    cleanupThreshold: 80,
   };
 
   private readonly QUOTA_MONITOR: QuotaMonitor = {
     warningThreshold: 70,
     criticalThreshold: 90,
     autoCleanup: true,
-    cleanupStrategies: ['old-backups', 'compressed-backups', 'clear-cache']
+    cleanupStrategies: ['old-backups', 'compressed-backups', 'clear-cache'],
   };
 
   private readonly BACKUP_PREFIX = 'taskgo_backup_';
@@ -134,7 +143,7 @@ export class LocalStorageService {
     availableSpace: 5 * 1024 * 1024, // 5MB estimate
     usagePercentage: 0,
     operationFrequency: {},
-    backupSizeDistribution: {}
+    backupSizeDistribution: {},
   };
 
   constructor() {
@@ -184,10 +193,15 @@ export class LocalStorageService {
     return `${this.STORAGE_PREFIX}${key}`;
   }
 
-  private createError(name: StorageError['name'], message: string, originalError?: Error, additionalData?: any): StorageError {
+  private createError(
+    name: StorageError['name'],
+    message: string,
+    originalError?: Error,
+    additionalData?: any
+  ): StorageError {
     const error: StorageError = new Error(message) as StorageError;
     error.name = name;
-    
+
     if (originalError) {
       error.stack = originalError.stack;
     }
@@ -227,7 +241,7 @@ export class LocalStorageService {
     }
 
     this.analytics.operationFrequency[key] = (this.analytics.operationFrequency[key] || 0) + 1;
-    
+
     // Update average data size
     const allKeys = Object.keys(this.analytics.operationFrequency);
     if (allKeys.length > 0) {
@@ -238,11 +252,18 @@ export class LocalStorageService {
   /**
    * Export all data with backups and metadata
    */
-  async exportData(): Promise<StorageResult<{ data: any; backups: BackupSnapshot[]; analytics: StorageAnalytics; exportedAt: number }>> {
+  async exportData(): Promise<
+    StorageResult<{
+      data: any;
+      backups: BackupSnapshot[];
+      analytics: StorageAnalytics;
+      exportedAt: number;
+    }>
+  > {
     try {
       const exportData: any = { tasks: [], settings: {} };
       const allBackups: BackupSnapshot[] = [];
-      
+
       // Export main data
       for (const storage of this.supportedStorage) {
         for (let i = 0; i < storage.length; i++) {
@@ -289,17 +310,17 @@ export class LocalStorageService {
         backups: allBackups,
         analytics: this.analytics,
         exportedAt: Date.now(),
-        version: this.CURRENT_VERSION
+        version: this.CURRENT_VERSION,
       };
 
       return {
         success: true,
-        data: exportPackage
+        data: exportPackage,
       };
     } catch (error) {
       return {
         success: false,
-        error: this.createError('UnknownError', 'Export failed', error as Error)
+        error: this.createError('UnknownError', 'Export failed', error as Error),
       };
     }
   }
@@ -307,7 +328,19 @@ export class LocalStorageService {
   /**
    * Import data with validation and recovery options
    */
-  async importData(importPackage: { data: any; backups: BackupSnapshot[]; analytics: StorageAnalytics; exportedAt: number; version: string }, options: { overwrite: boolean; createBackups: boolean } = { overwrite: false, createBackups: true }): Promise<StorageResult<boolean>> {
+  async importData(
+    importPackage: {
+      data: any;
+      backups: BackupSnapshot[];
+      analytics: StorageAnalytics;
+      exportedAt: number;
+      version: string;
+    },
+    options: { overwrite: boolean; createBackups: boolean } = {
+      overwrite: false,
+      createBackups: true,
+    }
+  ): Promise<StorageResult<boolean>> {
     try {
       // Validate import package structure
       if (!importPackage.data || !importPackage.backups || !Array.isArray(importPackage.backups)) {
@@ -316,7 +349,7 @@ export class LocalStorageService {
 
       // Create backup of current data if requested
       if (options.createBackups) {
-        await this.exportData().then(exportResult => {
+        await this.exportData().then((exportResult) => {
           if (exportResult.success) {
             const backupKey = `import_backup_${Date.now()}`;
             this.tryAllStoragesForWrite(backupKey, exportResult.data);
@@ -351,12 +384,12 @@ export class LocalStorageService {
 
       return {
         success: true,
-        data: true
+        data: true,
       };
     } catch (error) {
       return {
         success: false,
-        error: this.createError('UnknownError', 'Import failed', error as Error)
+        error: this.createError('UnknownError', 'Import failed', error as Error),
       };
     }
   }
@@ -368,18 +401,18 @@ export class LocalStorageService {
     try {
       // Update current usage
       this.updateCurrentUsage();
-      
+
       // Calculate backup size distribution
       await this.calculateBackupSizeDistribution();
-      
+
       return {
         success: true,
-        data: { ...this.analytics }
+        data: { ...this.analytics },
       };
     } catch (error) {
       return {
         success: false,
-        error: this.createError('UnknownError', 'Failed to get analytics', error as Error)
+        error: this.createError('UnknownError', 'Failed to get analytics', error as Error),
       };
     }
   }
@@ -394,7 +427,7 @@ export class LocalStorageService {
         '1-10KB': 0,
         '10-100KB': 0,
         '100KB-1MB': 0,
-        '>1MB': 0
+        '>1MB': 0,
       };
 
       for (const storage of this.supportedStorage) {
@@ -404,7 +437,7 @@ export class LocalStorageService {
             const value = storage.getItem(key);
             if (value) {
               const size = new Blob([key + value]).size;
-              
+
               if (size < 1024) sizeRanges['<1KB']++;
               else if (size < 10240) sizeRanges['1-10KB']++;
               else if (size < 102400) sizeRanges['10-100KB']++;
@@ -426,7 +459,7 @@ export class LocalStorageService {
     let hash = 0;
     for (let i = 0; i < dataStr.length; i++) {
       const char = dataStr.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     return hash.toString(36);
@@ -438,15 +471,15 @@ export class LocalStorageService {
   private generateCRC32(data: any): string {
     const dataStr = typeof data === 'string' ? data : JSON.stringify(data);
     const crcTable = this.generateCRCTable();
-    
-    let crc = 0 ^ (-1);
+
+    let crc = 0 ^ -1;
     for (let i = 0; i < dataStr.length; i++) {
       const code = dataStr.charCodeAt(i);
-      crc = (crc >>> 8) ^ crcTable[(crc ^ code) & 0xFF];
+      crc = (crc >>> 8) ^ crcTable[(crc ^ code) & 0xff];
     }
-    
+
     // Convert to positive number and then to hex string
-    return ((crc ^ (-1)) >>> 0).toString(16).padStart(8, '0');
+    return ((crc ^ -1) >>> 0).toString(16).padStart(8, '0');
   }
 
   /**
@@ -454,22 +487,31 @@ export class LocalStorageService {
    */
   private generateCRCTable(): number[] {
     const table: number[] = [];
-    
+
     for (let i = 0; i < 256; i++) {
       let code = i;
       for (let j = 0; j < 8; j++) {
-        code = (code & 1) ? (0xEDB88320 ^ (code >>> 1)) : (code >>> 1);
+        code = code & 1 ? 0xedb88320 ^ (code >>> 1) : code >>> 1;
       }
       table[i] = code;
     }
-    
+
     return table;
   }
 
   /**
    * Create backup snapshot before major operations
    */
-  private async createBackupSnapshot(key: string, data: unknown, operation: 'create' | 'update' | 'delete'): Promise<BackupSnapshot | null> {
+  private async createBackupSnapshot(
+    key: string,
+    data: unknown,
+    operation: 'create' | 'update' | 'delete'
+  ): Promise<BackupSnapshot | null> {
+    // Don't create backups for backup operations
+    if (key.startsWith(this.BACKUP_PREFIX)) {
+      return null; // ← STOP RECURSION
+    }
+
     if (!this.CONFIG.enableBackups || !this.BACKUP_CONFIG.enableAutomatic) {
       return null;
     }
@@ -477,14 +519,14 @@ export class LocalStorageService {
     try {
       const backupId = this.generateSecureId();
       const timestamp = Date.now();
-      
+
       const metadata: StorageMetadata = {
         version: this.CURRENT_VERSION,
         timestamp,
         checksum: this.generateChecksum(data),
         crc32: this.CONFIG.enableCRC32 ? this.generateCRC32(data) : undefined,
         backupId,
-        operation
+        operation,
       };
 
       const backup: BackupSnapshot = {
@@ -494,26 +536,26 @@ export class LocalStorageService {
         metadata,
         operation,
         key,
-        compressed: this.BACKUP_CONFIG.compressionEnabled
+        compressed: this.BACKUP_CONFIG.compressionEnabled,
       };
 
       // Store backup with proper key naming
       const backupKey = `${this.BACKUP_PREFIX}${key}_${backupId}`;
       const backupResult = await this.tryAllStoragesForWrite(backupKey, backup);
-      
+
       if (backupResult.success) {
         this.analytics.backupOperations++;
         this.updateAnalytics();
-        
+
         // Clean old backups if needed
         await this.cleanupOldBackups(key);
-        
+
         // Check quota and cleanup if needed
         await this.checkQuotaAndCleanup();
-        
+
         return backup;
       }
-      
+
       return null;
     } catch (error) {
       console.warn('Failed to create backup snapshot:', error);
@@ -535,17 +577,17 @@ export class LocalStorageService {
    */
   private async cleanupOldBackups(key: string): Promise<void> {
     try {
-      const cutoffTime = Date.now() - (this.BACKUP_CONFIG.retentionDays * 24 * 60 * 60 * 1000);
+      const cutoffTime = Date.now() - this.BACKUP_CONFIG.retentionDays * 24 * 60 * 60 * 1000;
       const allBackups = await this.getAllBackupsForkey(key);
-      
+
       // Sort by timestamp (newest first)
       const sortedBackups = allBackups
-        .filter(backup => backup.timestamp < cutoffTime)
+        .filter((backup) => backup.timestamp < cutoffTime)
         .sort((a, b) => b.timestamp - a.timestamp);
 
       // Keep only the most recent backups within retention period
       const backupsToDelete = sortedBackups.slice(this.BACKUP_CONFIG.maxBackups);
-      
+
       for (const backup of backupsToDelete) {
         const backupKey = `${this.BACKUP_PREFIX}${key}_${backup.id}`;
         await this.tryAllStoragesForDelete(backupKey);
@@ -560,16 +602,18 @@ export class LocalStorageService {
    */
   private async getAllBackupsForkey(key: string): Promise<BackupSnapshot[]> {
     const backups: BackupSnapshot[] = [];
-    
+
     for (const storage of this.supportedStorage) {
       const keysToRemove: string[] = [];
-      
       // Find all backup keys for this storage
       for (let i = 0; i < storage.length; i++) {
         const storageKey = storage.key(i);
-        if (storageKey && storageKey.startsWith(`${this.BACKUP_PREFIX}${key}_`)) {
+
+        if (storageKey && storageKey.startsWith(`${key}_`)) {
           try {
-            const result = await this.readFromStorage<BackupSnapshot>(storage, storageKey);
+            const backupId = storageKey.substring(this.STORAGE_PREFIX.length);
+            const result = await this.readFromStorage<BackupSnapshot>(storage, backupId);
+
             if (result) {
               backups.push(result);
             }
@@ -579,13 +623,14 @@ export class LocalStorageService {
           }
         }
       }
-      
+
       // Clean up corrupted backups
       for (const corruptedKey of keysToRemove) {
         storage.removeItem(corruptedKey);
+        console.log(`Removed corrupted backup: ${corruptedKey}`);
       }
     }
-    
+
     return backups;
   }
 
@@ -605,7 +650,7 @@ export class LocalStorageService {
         return {
           success: true,
           data: true,
-          fallbackUsed
+          fallbackUsed,
         };
       } catch (error) {
         lastError = error as StorageError;
@@ -615,7 +660,7 @@ export class LocalStorageService {
 
     return {
       success: false,
-      error: lastError
+      error: lastError,
     };
   }
 
@@ -625,13 +670,13 @@ export class LocalStorageService {
   private async checkQuotaAndCleanup(): Promise<void> {
     try {
       const usage = await this.getStorageUsage();
-      
+
       if (!usage.success || !usage.data) {
         return;
       }
 
       const { percentage } = usage.data;
-      
+
       if (percentage >= this.QUOTA_MONITOR.criticalThreshold && this.QUOTA_MONITOR.autoCleanup) {
         await this.performQuotaCleanup(percentage);
       }
@@ -645,7 +690,7 @@ export class LocalStorageService {
    */
   private async performQuotaCleanup(currentUsage: number): Promise<void> {
     console.warn(`Storage usage at ${currentUsage.toFixed(1)}%, performing cleanup...`);
-    
+
     for (const strategy of this.QUOTA_MONITOR.cleanupStrategies) {
       try {
         switch (strategy) {
@@ -659,10 +704,14 @@ export class LocalStorageService {
             await this.clearCacheData();
             break;
         }
-        
+
         // Check if cleanup was sufficient
         const newUsage = await this.getStorageUsage();
-        if (newUsage.success && newUsage.data && newUsage.data.percentage < this.QUOTA_MONITOR.warningThreshold) {
+        if (
+          newUsage.success &&
+          newUsage.data &&
+          newUsage.data.percentage < this.QUOTA_MONITOR.warningThreshold
+        ) {
           console.log('Cleanup successful, storage usage reduced');
           break;
         }
@@ -678,20 +727,22 @@ export class LocalStorageService {
   private async cleanupOldBackupsByPolicy(): Promise<void> {
     try {
       const allKeys = new Set<string>();
-      
+
       // Collect all unique keys that have backups
       for (const storage of this.supportedStorage) {
         for (let i = 0; i < storage.length; i++) {
           const storageKey = storage.key(i);
           if (storageKey && storageKey.startsWith(this.BACKUP_PREFIX)) {
-            const keyMatch = storageKey.match(new RegExp(`${this.BACKUP_PREFIX.replace('_', '_')}(.*?)_`));
+            const keyMatch = storageKey.match(
+              new RegExp(`${this.BACKUP_PREFIX.replace('_', '_')}(.*?)_`)
+            );
             if (keyMatch) {
               allKeys.add(keyMatch[1]);
             }
           }
         }
       }
-      
+
       // Cleanup backups for each key
       for (const key of allKeys) {
         await this.cleanupOldBackups(key);
@@ -717,7 +768,7 @@ export class LocalStorageService {
     try {
       // Clear analytics cache
       await this.removeItem(this.ANALYTICS_KEY);
-      
+
       // Clear any temporary cache entries
       await this.clear('cache_');
     } catch (error) {
@@ -735,10 +786,10 @@ export class LocalStorageService {
 
     try {
       this.analytics.totalOperations++;
-      
+
       // Update current usage
       this.updateCurrentUsage();
-      
+
       // Save analytics to storage
       this.saveAnalytics();
     } catch (error) {
@@ -751,7 +802,7 @@ export class LocalStorageService {
    */
   private updateCurrentUsage(): void {
     let totalUsed = 0;
-    
+
     for (const storage of this.supportedStorage) {
       for (let i = 0; i < storage.length; i++) {
         const key = storage.key(i);
@@ -763,9 +814,12 @@ export class LocalStorageService {
         }
       }
     }
-    
+
     this.analytics.currentUsage = totalUsed;
-    this.analytics.usagePercentage = Math.min((totalUsed / this.analytics.availableSpace) * 100, 100);
+    this.analytics.usagePercentage = Math.min(
+      (totalUsed / this.analytics.availableSpace) * 100,
+      100
+    );
     this.analytics.peakUsage = Math.max(this.analytics.peakUsage, totalUsed);
   }
 
@@ -806,7 +860,7 @@ export class LocalStorageService {
       return false;
     }
 
-    return tasks.every(task => this.validateTask(task));
+    return tasks.every((task) => this.validateTask(task));
   }
 
   private validateData(key: string, data: unknown): boolean {
@@ -830,12 +884,12 @@ export class LocalStorageService {
   }
 
   private async delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private async attemptStorageOperation<T>(
-    key: string, 
-    operation: () => T, 
+    key: string,
+    operation: () => T,
     attempts: number = 0
   ): Promise<T> {
     try {
@@ -844,20 +898,30 @@ export class LocalStorageService {
       const originalError = error as Error;
 
       // Don't retry our custom storage errors - they're final
-      if (originalError.name === 'QuotaExceededError' || 
-          originalError.name === 'SecurityError' || 
-          originalError.name === 'StorageDisabledError' ||
-          originalError.name === 'SerializationError' ||
-          originalError.name === 'ValidationError' ||
-          (originalError.name === 'TypeError' && originalError.message.toLowerCase().includes('storage'))) {
+      if (
+        originalError.name === 'QuotaExceededError' ||
+        originalError.name === 'SecurityError' ||
+        originalError.name === 'StorageDisabledError' ||
+        originalError.name === 'SerializationError' ||
+        originalError.name === 'ValidationError' ||
+        (originalError.name === 'TypeError' &&
+          originalError.message.toLowerCase().includes('storage'))
+      ) {
         // Handle TypeError with storage message by converting it to StorageDisabledError
-        if (originalError.name === 'TypeError' && originalError.message.toLowerCase().includes('storage')) {
-          throw this.createError('StorageDisabledError', `Storage is disabled or unavailable for key: ${key}`, originalError);
+        if (
+          originalError.name === 'TypeError' &&
+          originalError.message.toLowerCase().includes('storage')
+        ) {
+          throw this.createError(
+            'StorageDisabledError',
+            `Storage is disabled or unavailable for key: ${key}`,
+            originalError
+          );
         }
         // Ensure custom error properties are set even if error has correct name
         const enhancedError = this.createError(
-          originalError.name as StorageError['name'], 
-          originalError.message, 
+          originalError.name as StorageError['name'],
+          originalError.message,
           originalError
         );
         throw enhancedError;
@@ -869,150 +933,193 @@ export class LocalStorageService {
       }
 
       if (originalError.name === 'QuotaExceededError') {
-        throw this.createError('QuotaExceededError', `Storage quota exceeded for key: ${key}`, originalError);
+        throw this.createError(
+          'QuotaExceededError',
+          `Storage quota exceeded for key: ${key}`,
+          originalError
+        );
       }
 
-      if (originalError.name === 'SecurityError' || originalError.message.toLowerCase().includes('security')) {
-        throw this.createError('SecurityError', `Security error accessing storage for key: ${key}`, originalError);
+      if (
+        originalError.name === 'SecurityError' ||
+        originalError.message.toLowerCase().includes('security')
+      ) {
+        throw this.createError(
+          'SecurityError',
+          `Security error accessing storage for key: ${key}`,
+          originalError
+        );
       }
 
-      throw this.createError('UnknownError', `Unknown storage error for key: ${key}`, originalError);
+      throw this.createError(
+        'UnknownError',
+        `Unknown storage error for key: ${key}`,
+        originalError
+      );
     }
   }
 
   private async writeToStorage(
-    storage: Storage, 
-    key: string, 
-    value: unknown, 
+    storage: Storage,
+    key: string,
+    value: unknown,
     attempts: number = 0,
     operation: 'create' | 'update' | 'delete' = 'update'
   ): Promise<void> {
-    await this.attemptStorageOperation(key, async () => {
-      const fullKey = this.getFullKey(key);
-      
-      // Create backup before major operations
-      const backup = await this.createBackupSnapshot(key, value, operation);
-      
-      const metadata: StorageMetadata = {
-        version: this.CURRENT_VERSION,
-        timestamp: Date.now(),
-        backupId: backup?.id,
-        operation
-      };
+    await this.attemptStorageOperation(
+      key,
+      async () => {
+        const fullKey = this.getFullKey(key);
 
-      const payload = {
-        data: value,
-        metadata
-      };
+        // Create backup before major operations
+        const backup = await this.createBackupSnapshot(key, value, operation);
 
-      // Add basic checksum
-      if (this.CONFIG.enableValidation) {
-        metadata.checksum = this.generateChecksum(value);
-      }
+        const metadata: StorageMetadata = {
+          version: this.CURRENT_VERSION,
+          timestamp: Date.now(),
+          backupId: backup?.id,
+          operation,
+        };
 
-      // Add CRC32 checksum if enabled
-      if (this.CONFIG.enableCRC32) {
-        metadata.crc32 = this.generateCRC32(value);
-      }
+        const payload = {
+          data: value,
+          metadata,
+        };
 
-      const serialized = JSON.stringify(payload);
-      
-      // Check quota before writing
-      const dataSize = new Blob([fullKey + serialized]).size;
-      const usageResult = await this.getStorageUsage();
-      
-      if (usageResult.success && usageResult.data) {
-        const newSize = usageResult.data.used + dataSize;
-        if (newSize > usageResult.data.available) {
-          this.analytics.quotaExceededEvents++;
-          throw this.createError('QuotaExceededError', `Storage quota exceeded. Required: ${dataSize} bytes, Available: ${usageResult.data.available - usageResult.data.used} bytes`);
+        // Add basic checksum
+        if (this.CONFIG.enableValidation) {
+          metadata.checksum = this.generateChecksum(value);
         }
-      }
 
-      storage.setItem(fullKey, serialized);
-      
-      // Update analytics
-      this.updateAnalytics();
-      this.updateOperationFrequency(key);
-      
-    }, attempts);
+        // Add CRC32 checksum if enabled
+        if (this.CONFIG.enableCRC32) {
+          metadata.crc32 = this.generateCRC32(value);
+        }
+
+        const serialized = JSON.stringify(payload);
+
+        // Check quota before writing
+        const dataSize = new Blob([fullKey + serialized]).size;
+        const usageResult = await this.getStorageUsage();
+
+        if (usageResult.success && usageResult.data) {
+          const newSize = usageResult.data.used + dataSize;
+          if (newSize > usageResult.data.available) {
+            this.analytics.quotaExceededEvents++;
+            throw this.createError(
+              'QuotaExceededError',
+              `Storage quota exceeded. Required: ${dataSize} bytes, Available: ${
+                usageResult.data.available - usageResult.data.used
+              } bytes`
+            );
+          }
+        }
+
+        storage.setItem(fullKey, serialized);
+
+        // Update analytics
+        this.updateAnalytics();
+        this.updateOperationFrequency(key);
+      },
+      attempts
+    );
   }
 
   private async readFromStorage<T>(
-    storage: Storage, 
-    key: string, 
+    storage: Storage,
+    key: string,
     attempts: number = 0
   ): Promise<T | null> {
-    return await this.attemptStorageOperation(key, () => {
-      const fullKey = this.getFullKey(key);
-      const serialized = storage.getItem(fullKey);
+    return await this.attemptStorageOperation(
+      key,
+      () => {
+        const fullKey = this.getFullKey(key);
+        const serialized = storage.getItem(fullKey);
 
-      if (serialized === null) {
-        return null;
-      }
-
-      try {
-        const payload = JSON.parse(serialized);
-        
-        if (!payload.metadata || !payload.data) {
-          throw new Error('Invalid storage payload structure');
+        if (serialized === null) {
+          return null;
         }
 
-        // Perform multiple integrity checks
-        const integrityCheck = this.performIntegrityCheck(payload, key);
-        if (!integrityCheck.isValid) {
-          // Attempt recovery from backups
-          const recoveredData = this.attemptDataRecovery<T>(key, integrityCheck);
-          if (recoveredData) {
-            this.analytics.recoveryOperations++;
-            this.updateAnalytics();
-            return recoveredData;
+        try {
+          const payload = JSON.parse(serialized);
+
+          if (!payload.metadata || !payload.data) {
+            throw new Error('Invalid storage payload structure');
           }
-          
-          throw this.createError('CorruptionError', 
-            `Data corruption detected for key: ${key}. ${integrityCheck.error}`, 
-            new Error(integrityCheck.error),
-            { corruptedData: payload }
-          );
-        }
 
-        if (!this.validateData(key, payload.data)) {
-          throw new Error('Data validation failed');
-        }
+          // Perform multiple integrity checks
+          const integrityCheck = this.performIntegrityCheck(payload, key);
+          if (!integrityCheck.isValid) {
+            // Attempt recovery from backups
+            const recoveredData = this.attemptDataRecovery<T>(key, integrityCheck);
+            if (recoveredData) {
+              this.analytics.recoveryOperations++;
+              this.updateAnalytics();
+              return recoveredData;
+            }
 
-        return payload.data as T;
-      } catch (error) {
-        const originalError = error as Error;
-        
-        // Handle corruption errors specifically
-        if (originalError instanceof SyntaxError) {
-          const recoveredData = this.attemptDataRecovery<T>(key, { isValid: false, error: 'JSON parsing failed' });
-          if (recoveredData) {
-            return recoveredData;
+            throw this.createError(
+              'CorruptionError',
+              `Data corruption detected for key: ${key}. ${integrityCheck.error}`,
+              new Error(integrityCheck.error),
+              { corruptedData: payload }
+            );
           }
-          
-          const serializationError = this.createError('SerializationError', `Invalid JSON format for key: ${key}`, originalError);
-          throw serializationError;
-        }
-        
-        if (originalError.message.includes('Invalid storage payload structure') || 
-            originalError.message.includes('Data integrity check failed') || 
+
+          if (!this.validateData(key, payload.data)) {
+            throw new Error('Data validation failed');
+          }
+
+          return payload.data as T;
+        } catch (error) {
+          const originalError = error as Error;
+
+          // Handle corruption errors specifically
+          if (originalError instanceof SyntaxError) {
+            const recoveredData = this.attemptDataRecovery<T>(key, {
+              isValid: false,
+              error: 'JSON parsing failed',
+            });
+            if (recoveredData) {
+              return recoveredData;
+            }
+
+            const serializationError = this.createError(
+              'SerializationError',
+              `Invalid JSON format for key: ${key}`,
+              originalError
+            );
+            throw serializationError;
+          }
+
+          if (
+            originalError.message.includes('Invalid storage payload structure') ||
+            originalError.message.includes('Data integrity check failed') ||
             originalError.message.includes('Data validation failed') ||
-            originalError.name === 'CorruptionError') {
-          
-          // Try recovery before throwing validation error
-          const recoveredData = this.attemptDataRecovery<T>(key, { isValid: false, error: originalError.message });
-          if (recoveredData) {
-            return recoveredData;
+            originalError.name === 'CorruptionError'
+          ) {
+            // Try recovery before throwing validation error
+            const recoveredData = this.attemptDataRecovery<T>(key, {
+              isValid: false,
+              error: originalError.message,
+            });
+            if (recoveredData) {
+              return recoveredData;
+            }
+
+            const validationError = this.createError(
+              'ValidationError',
+              `Data validation failed for key: ${key}`,
+              originalError
+            );
+            throw validationError;
           }
-          
-          const validationError = this.createError('ValidationError', `Data validation failed for key: ${key}`, originalError);
-          throw validationError;
+
+          throw originalError;
         }
-        
-        throw originalError;
-      }
-    }, attempts);
+      },
+      attempts
+    );
   }
 
   /**
@@ -1047,30 +1154,40 @@ export class LocalStorageService {
 
       return { isValid: true };
     } catch (error) {
-      return { isValid: false, error: `Integrity check failed: ${error instanceof Error ? error.message : 'Unknown error'}` };
+      return {
+        isValid: false,
+        error: `Integrity check failed: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
+      };
     }
   }
 
   /**
    * Attempt data recovery from backups
    */
-  private async attemptDataRecovery<T>(key: string, integrityCheck: { isValid: boolean; error?: string }): Promise<T | null> {
+  private async attemptDataRecovery<T>(
+    key: string,
+    integrityCheck: { isValid: boolean; error?: string }
+  ): Promise<T | null> {
     if (!this.CONFIG.enableBackups) {
       return null;
     }
 
     try {
       console.warn(`Attempting data recovery for key: ${key} - ${integrityCheck.error}`);
-      
       const backups = await this.getAllBackupsForkey(key);
-      
+
       // Sort backups by timestamp (newest first) and find first valid backup
       for (const backup of backups.sort((a, b) => b.timestamp - a.timestamp)) {
-        const backupIntegrityCheck = this.performIntegrityCheck({ metadata: backup.metadata, data: backup.data }, key);
-        
+        const backupIntegrityCheck = this.performIntegrityCheck(
+          { metadata: backup.metadata, data: backup.data },
+          key
+        );
+
         if (backupIntegrityCheck.isValid && this.validateData(key, backup.data)) {
           console.log(`Successfully recovered data for key: ${key} from backup: ${backup.id}`);
-          
+
           // Restore the valid backup data
           const restoreResult = await this.tryAllStoragesForWrite(key, backup.data);
           if (restoreResult.success) {
@@ -1078,7 +1195,7 @@ export class LocalStorageService {
           }
         }
       }
-      
+
       console.error(`No valid backup found for key: ${key}`);
       return null;
     } catch (error) {
@@ -1087,13 +1204,17 @@ export class LocalStorageService {
     }
   }
 
-  private async tryAllStoragesForWrite<T>(key: string, value: T, operation: 'create' | 'update' | 'delete' = 'update'): Promise<StorageResult<T>> {
+  private async tryAllStoragesForWrite<T>(
+    key: string,
+    value: T,
+    operation: 'create' | 'update' | 'delete' = 'update'
+  ): Promise<StorageResult<T>> {
     let lastError: StorageError | undefined;
 
     for (const storage of this.supportedStorage) {
       try {
         await this.writeToStorage(storage, key, value, 0, operation);
-        
+
         const fallbackUsed = storage !== this.supportedStorage[0];
         if (fallbackUsed) {
           this.fallbackToSessionStorage = storage === sessionStorage;
@@ -1102,7 +1223,7 @@ export class LocalStorageService {
         return {
           success: true,
           data: value,
-          fallbackUsed
+          fallbackUsed,
         };
       } catch (error) {
         lastError = error as StorageError;
@@ -1113,7 +1234,7 @@ export class LocalStorageService {
     // Ensure we preserve the full error object with all properties
     return {
       success: false,
-      error: lastError
+      error: lastError,
     };
   }
 
@@ -1128,7 +1249,7 @@ export class LocalStorageService {
           return {
             success: true,
             data,
-            fallbackUsed
+            fallbackUsed,
           };
         }
       } catch (error) {
@@ -1139,22 +1260,27 @@ export class LocalStorageService {
 
     return {
       success: false,
-      error: lastError
+      error: lastError,
     };
   }
 
-  async setItem<T>(key: string, value: T, operation: 'create' | 'update' | 'delete' = 'update'): Promise<StorageResult<T>> {
+  async setItem<T>(
+    key: string,
+    value: T,
+    operation: 'create' | 'update' | 'delete' = 'update'
+  ): Promise<StorageResult<T>> {
     if (!this.CONFIG.enableValidation || this.validateData(key, value)) {
       return await this.tryAllStoragesForWrite(key, value, operation);
     } else {
       return {
         success: false,
-        error: this.createError('ValidationError', `Data validation failed for key: ${key}`)
+        error: this.createError('ValidationError', `Data validation failed for key: ${key}`),
       };
     }
   }
 
   async getItem<T>(key: string): Promise<StorageResult<T>> {
+    console.log('Getting item from localStorage:', key);
     return await this.tryAllStoragesForRead<T>(key);
   }
 
@@ -1172,7 +1298,7 @@ export class LocalStorageService {
         return {
           success: true,
           data: true,
-          fallbackUsed
+          fallbackUsed,
         };
       } catch (error) {
         lastError = error as StorageError;
@@ -1182,7 +1308,7 @@ export class LocalStorageService {
 
     return {
       success: false,
-      error: lastError
+      error: lastError,
     };
   }
 
@@ -1200,14 +1326,14 @@ export class LocalStorageService {
               keysToRemove.push(key);
             }
           }
-          keysToRemove.forEach(key => storage.removeItem(key));
+          keysToRemove.forEach((key) => storage.removeItem(key));
         });
 
         const fallbackUsed = storage !== this.supportedStorage[0];
         return {
           success: true,
           data: true,
-          fallbackUsed
+          fallbackUsed,
         };
       } catch (error) {
         lastError = error as StorageError;
@@ -1217,16 +1343,18 @@ export class LocalStorageService {
 
     return {
       success: false,
-      error: lastError
+      error: lastError,
     };
   }
 
-  async getStorageUsage(): Promise<StorageResult<{ used: number; available: number; percentage: number }>> {
+  async getStorageUsage(): Promise<
+    StorageResult<{ used: number; available: number; percentage: number }>
+  > {
     try {
       if (!this.supportedStorage.length) {
         return {
           success: false,
-          error: this.createError('StorageDisabledError', 'No storage available')
+          error: this.createError('StorageDisabledError', 'No storage available'),
         };
       }
 
@@ -1251,13 +1379,17 @@ export class LocalStorageService {
         data: {
           used: totalUsed,
           available: estimatedTotal - totalUsed,
-          percentage
-        }
+          percentage,
+        },
       };
     } catch (error) {
       return {
         success: false,
-        error: this.createError('UnknownError', 'Failed to calculate storage usage', error as Error)
+        error: this.createError(
+          'UnknownError',
+          'Failed to calculate storage usage',
+          error as Error
+        ),
       };
     }
   }
@@ -1274,7 +1406,7 @@ export class LocalStorageService {
     return {
       localStorage: this.isLocalStorageAvailable(),
       sessionStorage: this.isSessionStorageAvailable(),
-      fallbackActive: this.isUsingFallbackStorage()
+      fallbackActive: this.isUsingFallbackStorage(),
     };
   }
 
@@ -1283,48 +1415,61 @@ export class LocalStorageService {
    */
   async getBackupHistory(key: string): Promise<StorageResult<BackupSnapshot[]>> {
     try {
-      const backups = await this.getAllBackupsForkey(key);
+      const fullKey = this.getFullKey(this.BACKUP_PREFIX + this.STORAGE_PREFIX + key);
+
+      const backups = await this.getAllBackupsForkey(fullKey);
       return {
         success: true,
-        data: backups.sort((a, b) => b.timestamp - a.timestamp) // Newest first
+        data: backups.sort((a, b) => b.timestamp - a.timestamp), // Newest first
       };
     } catch (error) {
       return {
         success: false,
-        error: this.createError('UnknownError', 'Failed to get backup history', error as Error)
+        error: this.createError('UnknownError', 'Failed to get backup history', error as Error),
       };
     }
   }
 
   async restoreFromBackup(key: string, backupId: string): Promise<StorageResult<unknown>> {
     try {
-      const backups = await this.getAllBackupsForkey(key);
-      const backupToRestore = backups.find(backup => backup.id === backupId);
-      
+      const fullKey = this.getFullKey(this.BACKUP_PREFIX + key);
+      const backups = await this.getAllBackupsForkey(fullKey);
+
+      const backupToRestore = backups.find((backup) => backup.id === backupId);
+
       if (!backupToRestore) {
         throw new Error(`Backup ${backupId} not found for key ${key}`);
       }
 
-      const integrityCheck = this.performIntegrityCheck({ metadata: backupToRestore.metadata, data: backupToRestore.data }, key);
+      const integrityCheck = this.performIntegrityCheck(
+        { metadata: backupToRestore.metadata, data: backupToRestore.data },
+        key
+      );
       if (!integrityCheck.isValid) {
         throw new Error(`Backup ${backupId} is corrupted: ${integrityCheck.error}`);
       }
 
       // Create backup before restore
       await this.createBackupSnapshot(key, backupToRestore.data, 'update');
-      
+
       // Restore the backup data
       const result = await this.setItem(key, backupToRestore.data);
-      
+
       if (result.success) {
         console.log(`Successfully restored key ${key} from backup ${backupId}`);
       }
-      
+
       return result;
     } catch (error) {
       return {
         success: false,
-        error: this.createError('RecoveryError', `Failed to restore from backup: ${error instanceof Error ? error.message : 'Unknown error'}`, error as Error)
+        error: this.createError(
+          'RecoveryError',
+          `Failed to restore from backup: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`,
+          error as Error
+        ),
       };
     }
   }
@@ -1332,56 +1477,59 @@ export class LocalStorageService {
   async cleanupAllBackups(): Promise<StorageResult<boolean>> {
     try {
       const allKeys = new Set<string>();
-      
+      const fullKey = this.getFullKey(this.BACKUP_PREFIX);
+
       // Collect all unique keys that have backups
       for (const storage of this.supportedStorage) {
         for (let i = 0; i < storage.length; i++) {
           const storageKey = storage.key(i);
-          if (storageKey && storageKey.startsWith(this.BACKUP_PREFIX)) {
-            const keyMatch = storageKey.match(new RegExp(`${this.BACKUP_PREFIX.replace('_', '_')}(.*?)_`));
+          if (storageKey && storageKey.startsWith(fullKey)) {
+            const keyMatch = storageKey.match(new RegExp(`${fullKey.replace('_', '_')}(.*?)_`));
             if (keyMatch) {
               allKeys.add(keyMatch[1]);
             }
           }
         }
       }
-      
+
       // Cleanup backups for each key
       for (const key of allKeys) {
         await this.cleanupOldBackups(key);
       }
-      
+
       return {
         success: true,
-        data: true
+        data: true,
       };
     } catch (error) {
       return {
         success: false,
-        error: this.createError('UnknownError', 'Failed to cleanup backups', error as Error)
+        error: this.createError('UnknownError', 'Failed to cleanup backups', error as Error),
       };
     }
   }
 
-  async getStorageHealthReport(): Promise<StorageResult<{
-    status: 'healthy' | 'warning' | 'critical';
-    usage: { used: number; available: number; percentage: number };
-    analytics: StorageAnalytics;
-    backupCount: number;
-    corruptionEvents: number;
-    recommendations: string[];
-  }>> {
+  async getStorageHealthReport(): Promise<
+    StorageResult<{
+      status: 'healthy' | 'warning' | 'critical';
+      usage: { used: number; available: number; percentage: number };
+      analytics: StorageAnalytics;
+      backupCount: number;
+      corruptionEvents: number;
+      recommendations: string[];
+    }>
+  > {
     try {
       const usageResult = await this.getStorageUsage();
       const analyticsResult = await this.getStorageAnalytics();
-      
+
       if (!usageResult.success || !analyticsResult.success) {
         throw new Error('Failed to get storage health data');
       }
 
       const usage = usageResult.data!;
       const analytics = analyticsResult.data!;
-      
+
       // Count total backups
       let backupCount = 0;
       for (const storage of this.supportedStorage) {
@@ -1426,13 +1574,13 @@ export class LocalStorageService {
           analytics,
           backupCount,
           corruptionEvents: analytics.corruptionEvents,
-          recommendations
-        }
+          recommendations,
+        },
       };
     } catch (error) {
       return {
         success: false,
-        error: this.createError('UnknownError', 'Failed to generate health report', error as Error)
+        error: this.createError('UnknownError', 'Failed to generate health report', error as Error),
       };
     }
   }
@@ -1453,7 +1601,7 @@ export class LocalStorageService {
     return {
       storage: { ...this.CONFIG },
       backup: { ...this.BACKUP_CONFIG },
-      quota: { ...this.QUOTA_MONITOR }
+      quota: { ...this.QUOTA_MONITOR },
     };
   }
 }
