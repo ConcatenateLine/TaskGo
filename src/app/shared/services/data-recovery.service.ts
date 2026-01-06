@@ -200,6 +200,8 @@ export class DataRecoveryService {
 
     try {
       // Try to get data
+      console.log(`Checking integrity of key: ${key}`);
+
       const dataResult = await this.localStorageService.getItem(key);
 
       if (!dataResult.success) {
@@ -223,17 +225,26 @@ export class DataRecoveryService {
       }
 
       // Get backup information
+      console.log(`Getting backup history for key: ${key}`);
       const backupHistory = await this.localStorageService.getBackupHistory(key);
+      console.log('Backup history result:', backupHistory);
+      
       if (backupHistory.success) {
         report.availableBackups = backupHistory.data!.length;
+        console.log(`Found ${backupHistory.data!.length} backups`);
 
         if (backupHistory.data!.length > 0) {
           report.lastValidBackup = backupHistory.data![0];
+          console.log('Latest backup:', report.lastValidBackup);
 
           if (report.errors.length > 0 && report.availableBackups > 0) {
             report.recommendedAction = 'restore_backup';
           }
+        } else {
+          console.log('No backups found for key:', key);
         }
+      } else {
+        console.error('Failed to get backup history:', backupHistory.error);
       }
 
       if (report.errors.length === 0 && report.warnings.length > 0) {
@@ -496,9 +507,15 @@ export class DataRecoveryService {
       recoveryTime: 0,
     };
 
+    console.log('Performing auto-recovery...');
+    console.log('Integrity report:', integrityReport);
+
+
     try {
       if (integrityReport.lastValidBackup) {
         // Try to restore from the latest valid backup
+        console.log('Auto-recovering from backup:', integrityReport.lastValidBackup.id);
+
         const restoreResult = await this.localStorageService.restoreFromBackup(
           key,
           integrityReport.lastValidBackup.id

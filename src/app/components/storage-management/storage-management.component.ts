@@ -7,6 +7,7 @@ import {
   BackupSnapshot,
   StorageResult,
 } from '../../shared/services/local-storage.service';
+import { TaskExportService, TaskExportResult } from '../../shared/services/task-export.service';
 import { DataRecoveryService, RecoveryResult } from '../../shared/services/data-recovery.service';
 import {
   StorageAnalyticsService,
@@ -29,6 +30,7 @@ export class StorageManagementComponent implements OnInit {
   private dataRecoveryService = inject(DataRecoveryService);
   private storageAnalyticsService = inject(StorageAnalyticsService);
   private authService = inject(AuthService);
+  private taskExportService = inject(TaskExportService);
 
   // Signals for reactive state
   readonly isLoading = signal(false);
@@ -41,6 +43,8 @@ export class StorageManagementComponent implements OnInit {
   readonly recoverySessions = signal<any[]>([]);
   readonly exportData = signal<string | null>(null);
   readonly selectedBackup = signal<BackupSnapshot | null>(null);
+  readonly taskExportResult = signal<TaskExportResult | null>(null);
+  readonly taskExportError = signal<string | null>(null);
 
   // Computed properties
   readonly isHealthy = computed(() => {
@@ -59,6 +63,7 @@ export class StorageManagementComponent implements OnInit {
 
   readonly canRecover = computed(() => {
     const health = this.healthReport();
+    
     return health?.status !== 'healthy' || this.hasBackups();
   });
 
@@ -74,7 +79,7 @@ export class StorageManagementComponent implements OnInit {
     keys: [] as string[],
   });
 
-  constructor() {}
+  constructor() { }
 
   ngOnInit(): void {
     this.loadStorageData();
@@ -128,9 +133,9 @@ export class StorageManagementComponent implements OnInit {
    */
   async loadBackupHistory(): Promise<void> {
     try {
-      const tasksBackupResult = await this.localStorageService.getBackupHistory('tasks');
+      const tasksBackupResult = await this.localStorageService.getBackupHistory('taskgo_tasks');
       const archivedBackupResult = await this.localStorageService.getBackupHistory(
-        'archived_tasks'
+        'taskgo_archived_tasks'
       );
 
       const allBackups: BackupSnapshot[] = [];
@@ -191,8 +196,7 @@ export class StorageManagementComponent implements OnInit {
 
     if (
       !confirm(
-        `Are you sure you want to perform ${strategy} recovery for ${
-          keys.length > 0 ? keys.join(', ') : 'all keys'
+        `Are you sure you want to perform ${strategy} recovery for ${keys.length > 0 ? keys.join(', ') : 'all keys'
         }?`
       )
     ) {
@@ -209,7 +213,9 @@ export class StorageManagementComponent implements OnInit {
         result = await this.dataRecoveryService.performBatchRecovery(keys, { strategy });
       } else {
         // Single key recovery (default to tasks)
-        result = await this.dataRecoveryService.performRecovery('taskgo_taskgo_tasks', {
+        console.log('Performing single key recovery for tasks...');
+
+        result = await this.dataRecoveryService.performRecovery('taskgo_tasks', {
           strategy,
         });
       }
@@ -217,7 +223,7 @@ export class StorageManagementComponent implements OnInit {
       if (result.success) {
         const session = result.data as any;
 
-        if (session.summary.recovered > 0) {
+        if (session.summary?.recovered > 0) {
           alert(
             `Recovery completed successfully!\n\nRecovered: ${session.summary.recovered}\nFailed: ${session.summary.failed}\nWarnings: ${session.summary.warnings}`
           );
@@ -275,7 +281,9 @@ export class StorageManagementComponent implements OnInit {
     this.isLoading.set(true);
 
     try {
-      const result = await this.localStorageService.exportData();
+      const result = await this.localStorageService.exportData(
+        this.exportOptions()
+      );
 
       if (result.success) {
         const exportData = JSON.stringify(result.data, null, 2);
@@ -298,6 +306,29 @@ export class StorageManagementComponent implements OnInit {
       }
     } catch (error) {
       alert(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
+  /**
+   * Export tasks only (US-010 functionality)
+   */
+  async exportTasksOnly(): Promise<void> {
+    this.isLoading.set(true);
+    this.taskExportError.set(null);
+
+    try {
+      const result = await this.taskExportService.exportTasks();
+
+      this.taskExportResult.set(result);
+
+      if (!result.success) {
+        this.taskExportError.set(result.error?.message || 'Task export failed');
+      }
+
+    } catch (error) {
+      this.taskExportError.set(error instanceof Error ? error.message : 'Unknown error occurred');
     } finally {
       this.isLoading.set(false);
     }
@@ -367,8 +398,7 @@ export class StorageManagementComponent implements OnInit {
       alert('Detailed analytics logged to console. Check developer tools for full report.');
     } catch (error) {
       alert(
-        `Failed to generate detailed analytics: ${
-          error instanceof Error ? error.message : 'Unknown error'
+        `Failed to generate detailed analytics: ${error instanceof Error ? error.message : 'Unknown error'
         }`
       );
     } finally {
@@ -533,6 +563,79 @@ export class StorageManagementComponent implements OnInit {
    */
   getObjectEntries(obj: any): [string, any][] {
     return Object.entries(obj);
+  }
+
+  /**
+   * Simulate data corruption for testing
+   */
+  async simulateCorruption(): Promise<void> {
+    if (
+      !confirm(
+        'This will corrupt your stored data for testing purposes. Are you sure?'
+      )
+    ) {
+      return;
+    }
+
+    this.isLoading.set(true);
+
+    try {
+      // Get current data
+      const currentDataResult = await this.localStorageService.getItem('taskgo_tasks');
+      
+      if (currentDataResult.success && currentDataResult.data) {
+        // Corrupt the data in several different ways
+        const corruptionTypes = [
+          'invalid_json',
+          'missing_structure', 
+          'corrupted_tasks',
+          'null_data'
+        ];
+        
+        const selectedType = corruptionTypes[Math.floor(Math.random() * corruptionTypes.length)];
+        
+        let corruptedData: any;
+        
+        switch (selectedType) {
+          case 'invalid_json':
+            // Store invalid JSON directly
+            const fullKey = (this.localStorageService as any).getFullKey('taskgo_tasks');
+            localStorage.setItem(fullKey, '{"invalid": json structure}');
+            break;
+            
+          case 'missing_structure':
+            // Remove required fields from tasks
+            corruptedData = Array.isArray(currentDataResult.data) 
+              ? currentDataResult.data.map((task: any) => ({ id: task.id }))
+              : { invalid: 'structure' };
+            await this.localStorageService.setItem('taskgo_tasks', corruptedData);
+            break;
+            
+          case 'corrupted_tasks':
+            // Add invalid task data
+            corruptedData = Array.isArray(currentDataResult.data) 
+              ? [...currentDataResult.data, { invalidTask: true, priority: 'invalid' }]
+              : [{ corrupted: true }];
+            await this.localStorageService.setItem('taskgo_tasks', corruptedData);
+            break;
+            
+          case 'null_data':
+            // Set to null
+            const fullKeyNull = (this.localStorageService as any).getFullKey('taskgo_tasks');
+            localStorage.setItem(fullKeyNull, 'null');
+            break;
+        }
+        
+        alert(`Data corrupted using method: ${selectedType}\n\nNow try the recovery feature to test it!`);
+        await this.loadStorageData();
+      } else {
+        alert('No data found to corrupt. Add some tasks first.');
+      }
+    } catch (error) {
+      alert(`Failed to corrupt data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      this.isLoading.set(false);
+    }
   }
 
   /**

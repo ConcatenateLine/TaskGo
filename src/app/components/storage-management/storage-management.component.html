@@ -23,6 +23,15 @@
       </button>
       
       <button 
+        (click)="simulateCorruption()" 
+        class="btn btn-danger"
+        [disabled]="isLoading()"
+        aria-label="Simulate data corruption for testing"
+      >
+        🧪 Simulate Corruption
+      </button>
+      
+      <button 
         (click)="exportStorageData()" 
         class="btn btn-primary"
         [disabled]="isLoading()"
@@ -324,7 +333,38 @@
           <h3>Export / Import Data</h3>
           
           <div class="export-section">
-            <h4>Export Storage Data</h4>
+            <h4>Export Tasks Only</h4>
+            <p>Export just your tasks as a backup file with metadata.</p>
+            <div class="export-controls">
+              <button 
+                (click)="exportTasksOnly()" 
+                class="btn btn-primary"
+                [disabled]="isLoading()"
+                aria-label="Export tasks only"
+              >
+                @if (isLoading() && taskExportResult() === null) {
+                  📤 Exporting Tasks...
+                } @else {
+                  📤 Export Tasks
+                }
+              </button>
+              
+              @if (taskExportResult()?.success) {
+                <div class="export-success" role="status" aria-live="polite">
+                  Tasks exported successfully! Downloaded {{ taskExportResult()?.data?.metadata?.taskCount || 0 }} tasks.
+                </div>
+              }
+              
+              @if (taskExportError()) {
+                <div class="export-error" role="alert" aria-live="assertive">
+                  Task export failed: {{ taskExportError() }}
+                </div>
+              }
+            </div>
+          </div>
+          
+          <div class="export-section">
+            <h4>Export Full Storage Data</h4>
             <div class="export-controls">
               <label class="checkbox-label">
                 <input 
@@ -346,10 +386,10 @@
               
               <button 
                 (click)="exportStorageData()" 
-                class="btn btn-primary"
+                class="btn btn-secondary"
                 [disabled]="isLoading()"
               >
-                📤 Export Data
+                📤 Export Full Data
               </button>
             </div>
           </div>

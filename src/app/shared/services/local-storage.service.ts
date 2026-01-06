@@ -128,7 +128,6 @@ export class LocalStorageService {
 
   private readonly STORAGE_PREFIX = 'taskgo_';
   private readonly CURRENT_VERSION = '1.0.0';
-  private readonly STORAGE_KEY_PREFIX = 'tg_';
 
   private readonly supportedStorage: Storage[] = [];
   private fallbackToSessionStorage = false;
@@ -187,7 +186,7 @@ export class LocalStorageService {
   }
 
   private getStorageKey(key: string): string {
-    return `${this.STORAGE_KEY_PREFIX}${key}`;
+    return `${this.STORAGE_PREFIX}${key}`;
   }
 
   private getFullKey(key: string): string {
@@ -252,28 +251,36 @@ export class LocalStorageService {
 
   /**
    * Export all data with backups and metadata
+   * Note: This need add the encryption key of the exported data
    */
-  async exportData(): Promise<
+  async exportData(options?: {
+    includeBackups: boolean;
+    includeAnalytics: boolean;
+    compressionEnabled: boolean;
+  }): Promise<
     StorageResult<{
       data: any;
-      backups: BackupSnapshot[];
-      analytics: StorageAnalytics;
+      backups?: BackupSnapshot[];
+      analytics?: StorageAnalytics;
       exportedAt: number;
     }>
   > {
     try {
-      const exportData: any = { tasks: [], settings: {} };
+      const result: any = {};
+      const exportData: any = {};
       const allBackups: BackupSnapshot[] = [];
 
       // Export main data
       for (const storage of this.supportedStorage) {
         for (let i = 0; i < storage.length; i++) {
           const key = storage.key(i);
-          if (key && key.startsWith(this.getStorageKey(''))) {
+          if (key && key.startsWith(this.getStorageKey('taskgo_tasks'))) {
             try {
               const value = storage.getItem(key);
               if (value) {
                 const cleanKey = key.replace(this.getStorageKey(''), '');
+                console.log('Clean key:', cleanKey);
+
                 if (!cleanKey.startsWith('backup_') && cleanKey !== this.ANALYTICS_KEY) {
                   const result = await this.readFromStorage(storage, cleanKey);
                   if (result !== null) {
@@ -292,7 +299,11 @@ export class LocalStorageService {
       for (const storage of this.supportedStorage) {
         for (let i = 0; i < storage.length; i++) {
           const key = storage.key(i);
-          if (key && key.startsWith(this.BACKUP_PREFIX)) {
+          if (
+            options?.includeBackups &&
+            key &&
+            key.startsWith(this.getStorageKey(this.BACKUP_PREFIX))
+          ) {
             try {
               const value = storage.getItem(key);
               if (value) {
@@ -306,17 +317,21 @@ export class LocalStorageService {
         }
       }
 
-      const exportPackage = {
-        data: exportData,
-        backups: allBackups,
-        analytics: this.analytics,
-        exportedAt: Date.now(),
-        version: this.CURRENT_VERSION,
-      };
+      result.data = exportData;
+      result.version = this.CURRENT_VERSION;
+      result.exportedAt = Date.now();
+
+      if (options?.includeBackups) {
+        result.backups = allBackups;
+      }
+
+      if (options?.includeAnalytics) {
+        result.analytics = this.analytics;
+      }
 
       return {
         success: true,
-        data: exportPackage,
+        data: result,
       };
     } catch (error) {
       return {
@@ -328,6 +343,8 @@ export class LocalStorageService {
 
   /**
    * Import data with validation and recovery options
+   * Note: This will overwrite existing data
+   * Note: This will need the encryption key of the imported data
    */
   async importData(
     importPackage: {
@@ -361,6 +378,9 @@ export class LocalStorageService {
       // Import main data
       for (const [key, value] of Object.entries(importPackage.data)) {
         if (options.overwrite || !(await this.getItem(key)).success) {
+          console.log('Importing key:', key);
+          console.log('Importing value:', value);
+
           const result = await this.setItem(key, value);
           if (!result.success && result.error) {
             console.warn(`Failed to import key ${key}:`, result.error.message);
@@ -1434,8 +1454,9 @@ export class LocalStorageService {
    */
   async getBackupHistory(key: string): Promise<StorageResult<BackupSnapshot[]>> {
     try {
-      const fullKey = this.getFullKey(this.BACKUP_PREFIX + this.STORAGE_PREFIX + key);
-
+      // const fullKey = this.getFullKey(this.BACKUP_PREFIX + this.STORAGE_PREFIX + key);
+      // Fix: Don't double-add STORAGE_PREFIX since backup creation already uses full key
+      const fullKey = this.getFullKey(this.BACKUP_PREFIX + key);
       const backups = await this.getAllBackupsForkey(fullKey);
       return {
         success: true,
@@ -1469,7 +1490,12 @@ export class LocalStorageService {
       }
 
       // Create backup before restore
-      await this.createBackupSnapshot(key, backupToRestore.data, 'update', backupToRestore.metadata.taskContext);
+      await this.createBackupSnapshot(
+        key,
+        backupToRestore.data,
+        'update',
+        backupToRestore.metadata.taskContext
+      );
 
       // Restore the backup data
       const result = await this.setItem(key, backupToRestore.data);
