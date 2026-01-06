@@ -285,7 +285,7 @@ export class TaskService {
     this.tasks.update((tasks) => [...tasks, newTask]);
 
     // Queue auto-save operation
-    this.autoSaveService.queueTaskCreation(newTask, currentTasks);
+    this.autoSaveService.queueTaskCreation(newTask, currentTasks,"manual");
 
     // Keep existing encrypted storage as backup
     this.saveToEncryptedStorage('create');

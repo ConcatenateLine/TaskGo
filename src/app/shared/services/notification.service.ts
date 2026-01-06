@@ -68,8 +68,12 @@ export class NotificationService {
     source: NotificationSource = 'manual',
     duration?: number
   ): void {
+    // Debug logging
+    console.log(`showSuccess called: message="${message}", source="${source}"`);
+    
     // Don't show notifications for auto-saves (requirement)
     if (source === 'auto') {
+      console.log('Filtering out auto-save success notification');
       return;
     }
 
@@ -82,6 +86,7 @@ export class NotificationService {
       duration: duration ?? this.config.defaultDurations.success,
     };
 
+    console.log('Adding success notification:', notification);
     this.addNotification(notification);
   }
 

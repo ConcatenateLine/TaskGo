@@ -36,5 +36,17 @@
         Storage needs attention
       </div>
     }
+    
+    <!-- Notification Test Buttons (for debugging) -->
+    <div class="notification-tests">
+      <div class="test-title">Notification Tests:</div>
+      <div class="test-buttons">
+        <button class="test-btn success" (click)="testSuccessNotification()">Success</button>
+        <button class="test-btn warning" (click)="testWarningNotification()">Warning</button>
+        <button class="test-btn info" (click)="testInfoNotification()">Info</button>
+        <button class="test-btn error" (click)="testErrorNotification()">Error</button>
+        <button class="test-btn auto" (click)="testAutoSaveSuccess()">Auto (filtered)</button>
+      </div>
+    </div>
   </div>
 </nav>

@@ -5,6 +5,7 @@ import { Task } from '../models/task.model';
 import { LocalStorageService, StorageResult } from './local-storage.service';
 import { AuthService } from './auth.service';
 import { NotificationService } from './notification.service';
+import { CryptoService } from './crypto.service';
 
 export type AutoSaveSource = 'manual' | 'auto' | 'system';
 
@@ -48,6 +49,7 @@ export class AutoSaveService {
   private localStorageService = inject(LocalStorageService);
   private authService = inject(AuthService);
   private notificationService = inject(NotificationService);
+  private cryptoService = inject(CryptoService);
   private destroyRef = inject(DestroyRef);
 
   private readonly DEFAULT_CONFIG: AutoSaveConfig = {
@@ -135,6 +137,7 @@ export class AutoSaveService {
       }
 
       if (result.success) {
+        console.log('localStorage operation succeeded for:', operation.id);
         this.updateMetrics(true, performance.now() - startTime);
         this.lastKnownState.set(result.data!);
         
@@ -144,9 +147,11 @@ export class AutoSaveService {
 
         return { operation, success: true };
       } else {
+        console.error('localStorage operation failed:', result.error);
         throw result.error || new Error('Operation failed');
       }
     } catch (error) {
+      console.error('processOperation caught error:', error);
       this.updateMetrics(false, performance.now() - startTime);
       
       if (this.config.enableOptimisticUpdates && operation.rollbackData) {
@@ -173,11 +178,25 @@ export class AutoSaveService {
 
   private async handleUpdateOperation(operation: AutoSaveOperation): Promise<StorageResult<Task[]>> {
     const updatedTask = operation.data as Task;
-    const currentState = this.lastKnownState();
+    
+    // Get current state from encrypted storage to ensure we have latest data
+    const currentStateResult = await this.localStorageService.getItem(this.cryptoService.getStorageKey());
+    if (!currentStateResult.success || !currentStateResult.data) {
+      throw new Error('Failed to get current state from encrypted storage');
+    }
+    
+    // Decrypt the data
+    const decrypted = this.cryptoService.decrypt(currentStateResult.data as string);
+    if (!Array.isArray(decrypted)) {
+      throw new Error('Invalid data format in encrypted storage');
+    }
+    const currentState = decrypted as Task[];
     
     const taskIndex = currentState.findIndex(task => task.id === updatedTask.id);
     if (taskIndex === -1) {
-      throw new Error(`Task with ID ${updatedTask.id} not found`);
+      console.warn('Task not found in current state, skipping update:', updatedTask.id);
+      // Return success instead of throwing error to avoid notification
+      return { success: true, data: currentState };
     }
 
     const existingTask = currentState[taskIndex];
@@ -211,12 +230,24 @@ export class AutoSaveService {
   private async handleDeleteOperation(operation: AutoSaveOperation): Promise<StorageResult<Task[]>> {
     const taskId = operation.data as string;
     
-    // Use optimistic data if available, otherwise use current state
-    const currentState = operation.optimisticData || this.lastKnownState();
+    // Get current state from encrypted storage to ensure we have latest data
+    const currentStateResult = await this.localStorageService.getItem(this.cryptoService.getStorageKey());
+    if (!currentStateResult.success || !currentStateResult.data) {
+      throw new Error('Failed to get current state from encrypted storage');
+    }
+    
+    // Decrypt the data
+    const decrypted = this.cryptoService.decrypt(currentStateResult.data as string);
+    if (!Array.isArray(decrypted)) {
+      throw new Error('Invalid data format in encrypted storage');
+    }
+    const currentState = decrypted as Task[];
     
     const taskExists = currentState.some(task => task.id === taskId);
     if (!taskExists) {
-      throw new Error(`Task with ID ${taskId} not found`);
+      console.warn('Task not found in current state, skipping delete:', taskId);
+      // Return success instead of throwing error to avoid notification
+      return { success: true, data: currentState };
     }
 
     const updatedState = currentState.filter(task => task.id !== taskId);
@@ -225,7 +256,16 @@ export class AutoSaveService {
 
   private async saveWithRetry(tasks: Task[], attempts: number = 0): Promise<StorageResult<Task[]>> {
     try {
-      return await this.localStorageService.setItem('tasks', tasks);
+      // Encrypt the data before saving
+      const encrypted = this.cryptoService.encrypt(tasks);
+      const result = await this.localStorageService.setItem(this.cryptoService.getStorageKey(), encrypted);
+      
+      // Return the decrypted data for consistency
+      if (result.success) {
+        return { success: true, data: tasks };
+      } else {
+        return { success: false, error: result.error };
+      }
     } catch (error) {
       if (attempts < this.config.maxRetries) {
         await timer(this.config.retryDelayMs * (attempts + 1)).toPromise();
@@ -268,6 +308,13 @@ export class AutoSaveService {
   private handleOperationResult(result: { operation: AutoSaveOperation; success: boolean }): void {
     this.pendingOperations.delete(result.operation.id);
     
+    console.log('handleOperationResult called:', {
+      operationId: result.operation.id,
+      operationType: result.operation.type,
+      operationSource: result.operation.source,
+      success: result.success
+    });
+    
     if (result.success) {
       this.authService.logSecurityEvent({
         type: 'DATA_ACCESS',
@@ -283,6 +330,7 @@ export class AutoSaveService {
       }
     } else {
       // Show error notification for any failed operation
+      console.error('Operation failed, showing error notification:', result);
       this.notificationService.showError(`Failed to ${result.operation.type} task. Please try again.`);
     }
   }

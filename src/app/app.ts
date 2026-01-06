@@ -3,14 +3,17 @@ import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { StartupLoaderComponent } from './shared/components/startup-loader/startup-loader.component';
 import { NavigationComponent } from './shared/components/navigation/navigation.component';
+import { NotificationContainerComponent } from './shared/components/notification/notification-container.component';
 import { TaskService } from './shared/services/task.service';
 import { AuthService } from './shared/services/auth.service';
 import { SecurityService } from './shared/services/security.service';
 import { AppStartupService } from './shared/services/app-startup.service';
+import { NotificationService } from './shared/services/notification.service';
+import { AutoSaveService } from './shared/services/auto-save.service';
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, RouterOutlet, StartupLoaderComponent, NavigationComponent],
+  imports: [CommonModule, RouterOutlet, StartupLoaderComponent, NavigationComponent, NotificationContainerComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
@@ -82,5 +85,25 @@ export class App implements OnInit {
          window.location.hostname === 'localhost' ||
          window.location.hostname === '127.0.0.1')
      );
+   }
+
+   /**
+    * Handle startup errors and warnings
+    */
+   private handleStartupErrors(): void {
+     const error = this.startupError();
+     if (error) {
+       console.error('Application startup failed:', error);
+       this.notificationService.showError('Application startup failed: ' + error);
+       return;
+     }
+
+     const warnings = this.startupWarnings();
+     if (warnings.length > 0) {
+       console.warn('Startup completed with warnings:', warnings);
+       warnings.forEach(warning => {
+         this.notificationService.showWarning(warning);
+       });
+     }
    }
 }
