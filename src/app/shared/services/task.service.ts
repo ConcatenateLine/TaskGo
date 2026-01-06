@@ -71,14 +71,22 @@ export class TaskService {
   /**
    * Save tasks to encrypted storage
    */
-  private async saveToEncryptedStorage(operation: 'create' | 'update' | 'delete'): Promise<void> {
+  private async saveToEncryptedStorage(
+    operation: 'create' | 'update' | 'delete',
+    taskContext?: string
+  ): Promise<void> {
     try {
       const tasks = this.tasks();
       const encrypted = this.cryptoService.encrypt(tasks);
+      
+      // Use taskContext if provided, otherwise use a default context
+      const context = taskContext || `TaskService ${operation} operation`;
+      
       await this.localStorageService.setItem(
         this.cryptoService.getStorageKey(),
         encrypted,
-        operation
+        operation,
+        context
       );
 
       // Keep the old storage method as backup for review integration - temporary measure
@@ -288,7 +296,7 @@ export class TaskService {
     this.autoSaveService.queueTaskCreation(newTask, currentTasks,"manual");
 
     // Keep existing encrypted storage as backup
-    this.saveToEncryptedStorage('create');
+    this.saveToEncryptedStorage('create', newTask.title);
 
     // Log security event
     this.authService.logSecurityEvent({
@@ -386,7 +394,7 @@ export class TaskService {
     this.autoSaveService.queueTaskUpdate(updatedTask, currentTasks, 'manual');
 
     // Keep existing encrypted storage as backup
-    this.saveToEncryptedStorage('update');
+    this.saveToEncryptedStorage('update', updatedTask.title);
 
     // Log security event
     this.authService.logSecurityEvent({
@@ -436,6 +444,9 @@ export class TaskService {
       return false;
     }
 
+    const deletedTask = tasks[taskIndex];
+    const taskTitle = deletedTask?.title || 'Unknown Task';
+
     this.tasks.update((currentTasks) => currentTasks.filter((task) => task.id !== id));
 
     // Queue auto-save operation with updated tasks (after deletion)
@@ -443,7 +454,7 @@ export class TaskService {
     this.autoSaveService.queueTaskDeletion(id, updatedTasks, 'manual');
 
     // Keep existing encrypted storage as backup
-    this.saveToEncryptedStorage('delete');
+    this.saveToEncryptedStorage('delete', `Deleted: ${taskTitle}`);
 
     // Log security event
     this.authService.logSecurityEvent({
@@ -518,7 +529,7 @@ export class TaskService {
       ];
 
       this.tasks.set(mockTasks);
-      this.saveToEncryptedStorage('create');
+      this.saveToEncryptedStorage('create', 'Initialized mock data');
     }
   }
 
@@ -527,7 +538,7 @@ export class TaskService {
    */
   clearTasks(): void {
     this.tasks.set([]);
-    this.saveToEncryptedStorage('delete');
+    this.saveToEncryptedStorage('delete', 'Cleared all tasks');
   }
 
   /**
@@ -647,7 +658,7 @@ export class TaskService {
       this.autoSaveService.queueTaskUpdate(updatedTask, currentTasks, 'manual');
 
       // Save to encrypted storage as backup
-      this.saveToEncryptedStorage('update');
+      this.saveToEncryptedStorage('update', `Status change: ${currentTask.title} from ${currentTask.status} to ${newStatus}`);
 
       // Log security event
       this.authService.logSecurityEvent({

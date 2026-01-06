@@ -79,6 +79,38 @@ describe('LocalStorageService - Core Functionality', () => {
     expect(result.error?.name).toBe('ValidationError');
   });
 
+  it('should include taskContext in metadata when provided', async () => {
+    const testTaskContext = 'test-task-123';
+    
+    // Mock localStorage to capture the stored data
+    let storedData: any = null;
+    (mockLocalStorage.setItem as any).mockImplementation((key: string, value: string) => {
+      storedData = JSON.parse(value);
+    });
+
+    await service.setItem('test_key', mockTask, 'update', testTaskContext);
+    
+    expect(storedData).toBeDefined();
+    expect(storedData.metadata.taskContext).toBe(testTaskContext);
+    expect(storedData.metadata.operation).toBe('update');
+  });
+
+  it('should work with setItemWithTask convenience method', async () => {
+    const testTaskContext = 'test-task-456';
+    
+    // Mock localStorage to capture the stored data
+    let storedData: any = null;
+    (mockLocalStorage.setItem as any).mockImplementation((key: string, value: string) => {
+      storedData = JSON.parse(value);
+    });
+
+    await service.setItemWithTask('test_key', mockTask, testTaskContext, 'create');
+    
+    expect(storedData).toBeDefined();
+    expect(storedData.metadata.taskContext).toBe(testTaskContext);
+    expect(storedData.metadata.operation).toBe('create');
+  });
+
   it('should handle data removal', async () => {
     (mockLocalStorage.removeItem as any).mockReturnValue(undefined);
 

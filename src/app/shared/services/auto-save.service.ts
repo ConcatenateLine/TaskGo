@@ -258,7 +258,12 @@ export class AutoSaveService {
     try {
       // Encrypt the data before saving
       const encrypted = this.cryptoService.encrypt(tasks);
-      const result = await this.localStorageService.setItem(this.cryptoService.getStorageKey(), encrypted);
+      const result = await this.localStorageService.setItem(
+        this.cryptoService.getStorageKey(), 
+        encrypted,
+        'update',
+        'AutoSaveService batch operation'
+      );
       
       // Return the decrypted data for consistency
       if (result.success) {
@@ -289,7 +294,12 @@ export class AutoSaveService {
   private async performRollback(operation: AutoSaveOperation): Promise<void> {
     try {
       if (operation.rollbackData) {
-        await this.localStorageService.setItem('tasks', operation.rollbackData);
+        await this.localStorageService.setItem(
+          'tasks', 
+          operation.rollbackData,
+          'update',
+          `AutoSave rollback for operation ${operation.id}`
+        );
         this.lastKnownState.set(operation.rollbackData);
         this.metrics.update(m => ({ ...m, rollbackCount: m.rollbackCount + 1 }));
         

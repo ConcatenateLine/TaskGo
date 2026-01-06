@@ -48,6 +48,7 @@ export interface StorageMetadata {
   crc32?: string;
   backupId?: string;
   operation?: 'create' | 'update' | 'delete';
+  taskContext?: string; // More user-friendly than taskId
 }
 
 export interface BackupSnapshot {
@@ -505,7 +506,8 @@ export class LocalStorageService {
   private async createBackupSnapshot(
     key: string,
     data: unknown,
-    operation: 'create' | 'update' | 'delete'
+    operation: 'create' | 'update' | 'delete',
+    taskContext?: string
   ): Promise<BackupSnapshot | null> {
     // Don't create backups for backup operations
     if (key.startsWith(this.BACKUP_PREFIX)) {
@@ -527,6 +529,7 @@ export class LocalStorageService {
         crc32: this.CONFIG.enableCRC32 ? this.generateCRC32(data) : undefined,
         backupId,
         operation,
+        taskContext,
       };
 
       const backup: BackupSnapshot = {
@@ -964,7 +967,8 @@ export class LocalStorageService {
     key: string,
     value: unknown,
     attempts: number = 0,
-    operation: 'create' | 'update' | 'delete' = 'update'
+    operation: 'create' | 'update' | 'delete' = 'update',
+    taskContext?: string
   ): Promise<void> {
     await this.attemptStorageOperation(
       key,
@@ -972,13 +976,14 @@ export class LocalStorageService {
         const fullKey = this.getFullKey(key);
 
         // Create backup before major operations
-        const backup = await this.createBackupSnapshot(key, value, operation);
+        const backup = await this.createBackupSnapshot(key, value, operation, taskContext);
 
         const metadata: StorageMetadata = {
           version: this.CURRENT_VERSION,
           timestamp: Date.now(),
           backupId: backup?.id,
           operation,
+          taskContext,
         };
 
         const payload = {
@@ -1207,13 +1212,14 @@ export class LocalStorageService {
   private async tryAllStoragesForWrite<T>(
     key: string,
     value: T,
-    operation: 'create' | 'update' | 'delete' = 'update'
+    operation: 'create' | 'update' | 'delete' = 'update',
+    taskContext?: string
   ): Promise<StorageResult<T>> {
     let lastError: StorageError | undefined;
 
     for (const storage of this.supportedStorage) {
       try {
-        await this.writeToStorage(storage, key, value, 0, operation);
+        await this.writeToStorage(storage, key, value, 0, operation, taskContext);
 
         const fallbackUsed = storage !== this.supportedStorage[0];
         if (fallbackUsed) {
@@ -1267,16 +1273,29 @@ export class LocalStorageService {
   async setItem<T>(
     key: string,
     value: T,
-    operation: 'create' | 'update' | 'delete' = 'update'
+    operation: 'create' | 'update' | 'delete' = 'update',
+    taskContext?: string
   ): Promise<StorageResult<T>> {
     if (!this.CONFIG.enableValidation || this.validateData(key, value)) {
-      return await this.tryAllStoragesForWrite(key, value, operation);
+      return await this.tryAllStoragesForWrite(key, value, operation, taskContext);
     } else {
       return {
         success: false,
         error: this.createError('ValidationError', `Data validation failed for key: ${key}`),
       };
     }
+  }
+
+  /**
+   * Set item with task context - convenience method for task-related operations
+   */
+  async setItemWithTask<T>(
+    key: string,
+    value: T,
+    taskContext: string,
+    operation: 'create' | 'update' | 'delete' = 'update'
+  ): Promise<StorageResult<T>> {
+    return await this.setItem(key, value, operation, taskContext);
   }
 
   async getItem<T>(key: string): Promise<StorageResult<T>> {
@@ -1450,7 +1469,7 @@ export class LocalStorageService {
       }
 
       // Create backup before restore
-      await this.createBackupSnapshot(key, backupToRestore.data, 'update');
+      await this.createBackupSnapshot(key, backupToRestore.data, 'update', backupToRestore.metadata.taskContext);
 
       // Restore the backup data
       const result = await this.setItem(key, backupToRestore.data);
