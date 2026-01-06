@@ -78,10 +78,10 @@ export class TaskService {
     try {
       const tasks = this.tasks();
       const encrypted = this.cryptoService.encrypt(tasks);
-      
+
       // Use taskContext if provided, otherwise use a default context
       const context = taskContext || `TaskService ${operation} operation`;
-      
+
       await this.localStorageService.setItem(
         this.cryptoService.getStorageKey(),
         encrypted,
@@ -293,7 +293,7 @@ export class TaskService {
     this.tasks.update((tasks) => [...tasks, newTask]);
 
     // Queue auto-save operation
-    this.autoSaveService.queueTaskCreation(newTask, currentTasks,"manual");
+    this.autoSaveService.queueTaskCreation(newTask, currentTasks, 'manual');
 
     // Keep existing encrypted storage as backup
     this.saveToEncryptedStorage('create', newTask.title);
@@ -477,60 +477,66 @@ export class TaskService {
     }
 
     // Load existing data first
-    await this.loadFromEncryptedStorage();
+    await this.loadFromEncryptedStorage()
+      .then(() => {
+        console.log('✅ Loaded existing data from encrypted storage');
+      })
+      .finally(() => {
+        // Only initialize with mock data if empty or contains invalid data
+        const currentTasks = this.tasks();
+        if (
+          currentTasks.length === 0 ||
+          !currentTasks.every(
+            (task) => task && typeof task === 'object' && task.id && task.updatedAt
+          )
+        ) {
+          const mockTasks: Task[] = [
+            {
+              id: '1',
+              title: 'Review project requirements',
+              description: 'Go through the project specifications and create a task breakdown',
+              priority: 'high',
+              status: 'TODO',
+              project: 'Work',
+              createdAt: new Date('2024-01-15T10:00:00'),
+              updatedAt: new Date('2024-01-15T10:00:00'),
+            },
+            {
+              id: '2',
+              title: 'Setup development environment',
+              description: 'Install Angular CLI and configure the workspace',
+              priority: 'medium',
+              status: 'DONE',
+              project: 'Work',
+              createdAt: new Date('2024-01-14T09:00:00'),
+              updatedAt: new Date('2024-01-16T14:30:00'),
+            },
+            {
+              id: '3',
+              title: 'Learn Angular signals',
+              description: 'Study the new signals API for reactive state management',
+              priority: 'low',
+              status: 'IN_PROGRESS',
+              project: 'Study',
+              createdAt: new Date('2024-01-13T16:00:00'),
+              updatedAt: new Date('2024-01-17T11:00:00'),
+            },
+            {
+              id: '4',
+              title: 'Grocery shopping',
+              description: 'Buy groceries for the week',
+              priority: 'medium',
+              status: 'TODO',
+              project: 'Personal',
+              createdAt: new Date('2024-01-12T20:00:00'),
+              updatedAt: new Date('2024-01-12T20:00:00'),
+            },
+          ];
 
-    // Only initialize with mock data if empty or contains invalid data
-    const currentTasks = this.tasks();
-    if (
-      currentTasks.length === 0 ||
-      !currentTasks.every((task) => task && typeof task === 'object' && task.id && task.updatedAt)
-    ) {
-      const mockTasks: Task[] = [
-        {
-          id: '1',
-          title: 'Review project requirements',
-          description: 'Go through the project specifications and create a task breakdown',
-          priority: 'high',
-          status: 'TODO',
-          project: 'Work',
-          createdAt: new Date('2024-01-15T10:00:00'),
-          updatedAt: new Date('2024-01-15T10:00:00'),
-        },
-        {
-          id: '2',
-          title: 'Setup development environment',
-          description: 'Install Angular CLI and configure the workspace',
-          priority: 'medium',
-          status: 'DONE',
-          project: 'Work',
-          createdAt: new Date('2024-01-14T09:00:00'),
-          updatedAt: new Date('2024-01-16T14:30:00'),
-        },
-        {
-          id: '3',
-          title: 'Learn Angular signals',
-          description: 'Study the new signals API for reactive state management',
-          priority: 'low',
-          status: 'IN_PROGRESS',
-          project: 'Study',
-          createdAt: new Date('2024-01-13T16:00:00'),
-          updatedAt: new Date('2024-01-17T11:00:00'),
-        },
-        {
-          id: '4',
-          title: 'Grocery shopping',
-          description: 'Buy groceries for the week',
-          priority: 'medium',
-          status: 'TODO',
-          project: 'Personal',
-          createdAt: new Date('2024-01-12T20:00:00'),
-          updatedAt: new Date('2024-01-12T20:00:00'),
-        },
-      ];
-
-      this.tasks.set(mockTasks);
-      this.saveToEncryptedStorage('create', 'Initialized mock data');
-    }
+          this.tasks.set(mockTasks);
+          this.saveToEncryptedStorage('create', 'Initialized mock data');
+        }
+      });
   }
 
   /**
@@ -658,7 +664,10 @@ export class TaskService {
       this.autoSaveService.queueTaskUpdate(updatedTask, currentTasks, 'manual');
 
       // Save to encrypted storage as backup
-      this.saveToEncryptedStorage('update', `Status change: ${currentTask.title} from ${currentTask.status} to ${newStatus}`);
+      this.saveToEncryptedStorage(
+        'update',
+        `Status change: ${currentTask.title} from ${currentTask.status} to ${newStatus}`
+      );
 
       // Log security event
       this.authService.logSecurityEvent({
