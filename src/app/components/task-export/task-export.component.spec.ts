@@ -1,15 +1,14 @@
+import { vi, beforeEach, describe, it, expect } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { TaskExportComponent } from './task-export.component';
-import { TaskExportService } from '../shared/services/task-export.service';
-import { TaskExportResult } from '../shared/services/task-export.service';
-import { vi } from 'vitest';
+import { TaskExportService, TaskExportResult } from '../../shared/services/task-export.service';
 
 describe('TaskExportComponent', () => {
   let component: TaskExportComponent;
   let fixture: ComponentFixture<TaskExportComponent>;
-  let taskExportServiceSpy: jasmine.SpyObj<TaskExportService>;
+  let taskExportServiceSpy: any;
 
   const mockSuccessResult: TaskExportResult = {
     success: true,
@@ -69,20 +68,20 @@ describe('TaskExportComponent', () => {
   };
 
   beforeEach(async () => {
-    taskExportServiceSpy = jasmine.createSpyObj('TaskExportService', ['exportTasks']);
+    taskExportServiceSpy = {
+      exportTasks: vi.fn(),
+    };
 
     await TestBed.configureTestingModule({
       imports: [TaskExportComponent],
-      providers: [
-        { provide: TaskExportService, useValue: taskExportServiceSpy },
-      ],
+      providers: [{ provide: TaskExportService, useValue: taskExportServiceSpy }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(TaskExportComponent);
     component = fixture.componentInstance;
 
     // Setup default spy behavior
-    taskExportServiceSpy.exportTasks.and.resolveTo(mockSuccessResult);
+    taskExportServiceSpy.exportTasks.mockResolvedValue(mockSuccessResult);
 
     fixture.detectChanges();
   });
@@ -131,7 +130,7 @@ describe('TaskExportComponent', () => {
     it('should set isExporting to true during export', async () => {
       // Make the export take some time
       let resolveExport: (value: TaskExportResult) => void;
-      taskExportServiceSpy.exportTasks.and.returnValue(
+      taskExportServiceSpy.exportTasks.mockReturnValue(
         new Promise((resolve) => {
           resolveExport = resolve;
         })
@@ -158,7 +157,7 @@ describe('TaskExportComponent', () => {
     });
 
     it('should set isExporting to false after failed export', async () => {
-      taskExportServiceSpy.exportTasks.and.resolveTo(mockErrorResult);
+      taskExportServiceSpy.exportTasks.mockResolvedValue(mockErrorResult);
 
       const exportButton = fixture.debugElement.query(By.css('button[aria-label="Export tasks"]'));
       exportButton.nativeElement.click();
@@ -169,7 +168,7 @@ describe('TaskExportComponent', () => {
 
     it('should disable button while exporting', async () => {
       let resolveExport: (value: TaskExportResult) => void;
-      taskExportServiceSpy.exportTasks.and.returnValue(
+      taskExportServiceSpy.exportTasks.mockReturnValue(
         new Promise((resolve) => {
           resolveExport = resolve;
         })
@@ -190,7 +189,7 @@ describe('TaskExportComponent', () => {
 
     it('should show loading text while exporting', async () => {
       let resolveExport: (value: TaskExportResult) => void;
-      taskExportServiceSpy.exportTasks.and.returnValue(
+      taskExportServiceSpy.exportTasks.mockReturnValue(
         new Promise((resolve) => {
           resolveExport = resolve;
         })
@@ -243,7 +242,7 @@ describe('TaskExportComponent', () => {
 
   describe('Failed Export', () => {
     beforeEach(async () => {
-      taskExportServiceSpy.exportTasks.and.resolveTo(mockErrorResult);
+      taskExportServiceSpy.exportTasks.mockResolvedValue(mockErrorResult);
 
       const exportButton = fixture.debugElement.query(By.css('button[aria-label="Export tasks"]'));
       exportButton.nativeElement.click();
@@ -268,7 +267,7 @@ describe('TaskExportComponent', () => {
     });
 
     it('should allow retry after error', async () => {
-      taskExportServiceSpy.exportTasks.and.resolveTo(mockSuccessResult);
+      taskExportServiceSpy.exportTasks.mockResolvedValue(mockSuccessResult);
 
       const exportButton = fixture.debugElement.query(By.css('button[aria-label="Export tasks"]'));
       exportButton.nativeElement.click();
@@ -282,11 +281,11 @@ describe('TaskExportComponent', () => {
   describe('File Download', () => {
     it('should create blob with correct MIME type', async () => {
       // Mock document methods
-      const createElementSpy = spyOn(document, 'createElement').and.callThrough();
-      const appendChildSpy = spyOn(document.body, 'appendChild').and.callThrough();
-      const removeChildSpy = spyOn(document.body, 'removeChild').and.callThrough();
-      const createObjectURLSpy = spyOn(URL, 'createObjectURL').and.callThrough();
-      const revokeObjectURLSpy = spyOn(URL, 'revokeObjectURL').and.callThrough();
+      const createElementSpy = vi.spyOn(document, 'createElement');
+      const appendChildSpy = vi.spyOn(document.body, 'appendChild');
+      const removeChildSpy = vi.spyOn(document.body, 'removeChild');
+      const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL');
+      const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL');
 
       const exportButton = fixture.debugElement.query(By.css('button[aria-label="Export tasks"]'));
       exportButton.nativeElement.click();
@@ -299,11 +298,11 @@ describe('TaskExportComponent', () => {
     });
 
     it('should set correct filename on download', async () => {
-      spyOn(document, 'createElement').and.callThrough();
-      spyOn(document.body, 'appendChild').and.callThrough();
-      spyOn(document.body, 'removeChild').and.callThrough();
-      spyOn(URL, 'createObjectURL').and.callThrough();
-      spyOn(URL, 'revokeObjectURL').and.callThrough();
+      vi.spyOn(document, 'createElement');
+      vi.spyOn(document.body, 'appendChild');
+      vi.spyOn(document.body, 'removeChild');
+      vi.spyOn(URL, 'createObjectURL');
+      vi.spyOn(URL, 'revokeObjectURL');
 
       const exportButton = fixture.debugElement.query(By.css('button[aria-label="Export tasks"]'));
       exportButton.nativeElement.click();
@@ -314,20 +313,20 @@ describe('TaskExportComponent', () => {
     });
 
     it('should cleanup DOM after download', async () => {
-      const appendChildSpy = spyOn(document.body, 'appendChild').and.callThrough();
-      const removeChildSpy = spyOn(document.body, 'removeChild').and.callThrough();
+      const appendChildSpy = vi.spyOn(document.body, 'appendChild');
+      const removeChildSpy = vi.spyOn(document.body, 'removeChild');
 
       const exportButton = fixture.debugElement.query(By.css('button[aria-label="Export tasks"]'));
       exportButton.nativeElement.click();
       await fixture.whenStable();
 
-      expect(appendChildSpy.calls.count()).toBeGreaterThan(0);
-      expect(removeChildSpy.calls.count()).toBeGreaterThan(0);
+      expect(appendChildSpy.mock.calls.length).toBeGreaterThan(0);
+      expect(removeChildSpy.mock.calls.length).toBeGreaterThan(0);
     });
 
     it('should revoke object URL after download', async () => {
-      const createObjectURLSpy = spyOn(URL, 'createObjectURL').and.returnValue('blob:test-url');
-      const revokeObjectURLSpy = spyOn(URL, 'revokeObjectURL').and.callThrough();
+      const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test-url');
+      const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL');
 
       const exportButton = fixture.debugElement.query(By.css('button[aria-label="Export tasks"]'));
       exportButton.nativeElement.click();
@@ -346,7 +345,7 @@ describe('TaskExportComponent', () => {
 
     it('should have aria-busy="true" while exporting', async () => {
       let resolveExport: (value: TaskExportResult) => void;
-      taskExportServiceSpy.exportTasks.and.returnValue(
+      taskExportServiceSpy.exportTasks.mockReturnValue(
         new Promise((resolve) => {
           resolveExport = resolve;
         })
@@ -378,7 +377,7 @@ describe('TaskExportComponent', () => {
     });
 
     it('should announce export error to screen readers', async () => {
-      taskExportServiceSpy.exportTasks.and.resolveTo(mockErrorResult);
+      taskExportServiceSpy.exportTasks.mockResolvedValue(mockErrorResult);
 
       const exportButton = fixture.debugElement.query(By.css('button[aria-label="Export tasks"]'));
       exportButton.nativeElement.click();
@@ -414,7 +413,7 @@ describe('TaskExportComponent', () => {
     it('should handle rapid consecutive clicks', async () => {
       // Make export take longer
       let resolveExport: (value: TaskExportResult) => void;
-      taskExportServiceSpy.exportTasks.and.returnValue(
+      taskExportServiceSpy.exportTasks.mockReturnValue(
         new Promise((resolve) => {
           resolveExport = resolve;
         })
@@ -429,7 +428,7 @@ describe('TaskExportComponent', () => {
       fixture.detectChanges();
 
       // Should only call export once
-      expect(taskExportServiceSpy.exportTasks.calls.count()).toBe(1);
+      expect(taskExportServiceSpy.exportTasks).toHaveBeenCalledTimes(1);
       expect(component.isExporting()).toBe(true);
 
       // Resolve and try again
@@ -439,7 +438,7 @@ describe('TaskExportComponent', () => {
       exportButton.nativeElement.click();
       await fixture.whenStable();
 
-      expect(taskExportServiceSpy.exportTasks.calls.count()).toBe(2);
+      expect(taskExportServiceSpy.exportTasks).toHaveBeenCalledTimes(2);
     });
 
     it('should handle empty task list', async () => {
@@ -460,7 +459,7 @@ describe('TaskExportComponent', () => {
           jsonString: '{"tasks":[],"metadata":{"version":"1.0.0"}}',
         },
       };
-      taskExportServiceSpy.exportTasks.and.resolveTo(emptyResult);
+      taskExportServiceSpy.exportTasks.mockResolvedValue(emptyResult);
 
       const exportButton = fixture.debugElement.query(By.css('button[aria-label="Export tasks"]'));
       exportButton.nativeElement.click();
@@ -496,7 +495,7 @@ describe('TaskExportComponent', () => {
           jsonString: '{}',
         },
       };
-      taskExportServiceSpy.exportTasks.and.resolveTo(largeResult);
+      taskExportServiceSpy.exportTasks.mockResolvedValue(largeResult);
 
       const exportButton = fixture.debugElement.query(By.css('button[aria-label="Export tasks"]'));
       exportButton.nativeElement.click();
@@ -506,7 +505,7 @@ describe('TaskExportComponent', () => {
     });
 
     it('should handle service throwing exception', async () => {
-      taskExportServiceSpy.exportTasks.and.rejectTo(new Error('Network error'));
+      taskExportServiceSpy.exportTasks.mockRejectedValue(new Error('Network error'));
 
       const exportButton = fixture.debugElement.query(By.css('button[aria-label="Export tasks"]'));
       exportButton.nativeElement.click();
@@ -548,7 +547,7 @@ describe('TaskExportComponent', () => {
 
   describe('Cleanup', () => {
     it('should clear error message on new export attempt', async () => {
-      taskExportServiceSpy.exportTasks.and.resolveTo(mockErrorResult);
+      taskExportServiceSpy.exportTasks.mockResolvedValue(mockErrorResult);
 
       const exportButton = fixture.debugElement.query(By.css('button[aria-label="Export tasks"]'));
       exportButton.nativeElement.click();
@@ -557,7 +556,7 @@ describe('TaskExportComponent', () => {
       expect(component.errorMessage()).not.toBeNull();
 
       // Try again with success
-      taskExportServiceSpy.exportTasks.and.resolveTo(mockSuccessResult);
+      taskExportServiceSpy.exportTasks.mockResolvedValue(mockSuccessResult);
       exportButton.nativeElement.click();
       await fixture.whenStable();
 
@@ -565,7 +564,7 @@ describe('TaskExportComponent', () => {
     });
 
     it('should clear previous result on new export attempt', async () => {
-      taskExportServiceSpy.exportTasks.and.resolveTo(mockSuccessResult);
+      taskExportServiceSpy.exportTasks.mockResolvedValue(mockSuccessResult);
 
       const exportButton = fixture.debugElement.query(By.css('button[aria-label="Export tasks"]'));
       exportButton.nativeElement.click();

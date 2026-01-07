@@ -1,16 +1,19 @@
 import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import {
   TaskExportService,
   TaskExportResult,
   TaskExportMetadata,
 } from './task-export.service';
-import { LocalStorageService } from '../shared/services/local-storage.service';
-import { Task } from '../shared/models/task.model';
-import { vi } from 'vitest';
+import { LocalStorageService, StorageError, StorageResult } from './local-storage.service';
+import { CryptoService } from './crypto.service';
+import { Task } from '../models/task.model';
 
 describe('TaskExportService', () => {
   let service: TaskExportService;
-  let localStorageServiceSpy: jasmine.SpyObj<LocalStorageService>;
+  let localStorageServiceSpy: any;
+  let cryptoServiceSpy: any;
+  let downloadSpy: any;
 
   // Mock tasks for testing
   const mockTasks: Task[] = [
@@ -49,17 +52,45 @@ describe('TaskExportService', () => {
   }));
 
   beforeEach(async () => {
-    localStorageServiceSpy = jasmine.createSpyObj('LocalStorageService', [
-      'getItem',
-      'setItem',
-    ]);
+    localStorageServiceSpy = {
+      getItem: vi.fn(),
+    };
 
-    localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(mockTasks));
+    cryptoServiceSpy = {
+      decrypt: vi.fn(),
+    };
+
+    // Mock download functionality
+    downloadSpy = vi.fn();
+    global.URL.createObjectURL = vi.fn(() => 'mock-url');
+    global.URL.revokeObjectURL = vi.fn();
+    global.Blob = vi.fn((content, options) => ({
+      content,
+      options,
+      size: JSON.stringify(content).length,
+    })) as any;
+    global.document = {
+      body: {
+        appendChild: vi.fn(),
+        removeChild: vi.fn(),
+      },
+      createElement: vi.fn((tagName: string) => {
+        if (tagName === 'a') {
+          return {
+            href: '',
+            download: '',
+            click: downloadSpy,
+          };
+        }
+        return {};
+      }),
+    } as any;
 
     await TestBed.configureTestingModule({
       providers: [
         TaskExportService,
         { provide: LocalStorageService, useValue: localStorageServiceSpy },
+        { provide: CryptoService, useValue: cryptoServiceSpy },
       ],
     }).compileComponents();
 
@@ -76,7 +107,7 @@ describe('TaskExportService', () => {
     });
 
     it('should have default export filename prefix', () => {
-      expect(service['FILENAME_PREFIX']).toBe('taskflow_backup_');
+      expect(service['FILENAME_PREFIX']).toBe('taskgo_backup_');
     });
 
     it('should have default file extension', () => {
@@ -86,17 +117,28 @@ describe('TaskExportService', () => {
 
   describe('Export Tasks - Happy Path', () => {
     it('should export tasks successfully', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(mockTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(mockTasks);
 
       const result = await service.exportTasks();
 
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
       expect(result.error).toBeUndefined();
+      expect(downloadSpy).toHaveBeenCalled();
     });
 
     it('should include all tasks in export data', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(mockTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(mockTasks);
 
       const result = await service.exportTasks();
 
@@ -107,7 +149,12 @@ describe('TaskExportService', () => {
     });
 
     it('should include metadata in export data', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(mockTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(mockTasks);
 
       const result = await service.exportTasks();
 
@@ -118,27 +165,42 @@ describe('TaskExportService', () => {
     });
 
     it('should include metadata with project breakdown', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(mockTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(mockTasks);
 
       const result = await service.exportTasks();
 
       expect(result.data?.metadata.projectBreakdown).toBeDefined();
-      expect(result.data?.metadata.projectBreakdown.Work).toBe(1);
-      expect(result.data?.metadata.projectBreakdown.Personal).toBe(1);
+      expect(result.data?.metadata.projectBreakdown['Work']).toBe(1);
+      expect(result.data?.metadata.projectBreakdown['Personal']).toBe(1);
     });
 
     it('should include metadata with status breakdown', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(mockTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(mockTasks);
 
       const result = await service.exportTasks();
 
       expect(result.data?.metadata.statusBreakdown).toBeDefined();
-      expect(result.data?.metadata.statusBreakdown.TODO).toBe(1);
+      expect(result.data?.metadata.statusBreakdown['TODO']).toBe(1);
       expect(result.data?.metadata.statusBreakdown['IN_PROGRESS']).toBe(1);
     });
 
     it('should generate correct filename with YYYY-MM-DD format', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(mockTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(mockTasks);
 
       // Mock the date to a known value for testing
       const testDate = new Date('2024-06-15T10:30:00.000Z');
@@ -146,25 +208,35 @@ describe('TaskExportService', () => {
 
       const result = await service.exportTasks();
 
-      expect(result.data?.filename).toBe('taskflow_backup_2024-06-15.json');
+      expect(result.data?.filename).toBe('taskgo_backup_2024-06-15.json');
     });
 
     it('should preserve task properties correctly', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(mockTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(mockTasks);
 
       const result = await service.exportTasks();
 
       const exportedTask = result.data?.tasks[0];
-      expect(exportedTask.id).toBe('1');
-      expect(exportedTask.title).toBe('Test Task 1');
-      expect(exportedTask.description).toContain('special characters');
-      expect(exportedTask.priority).toBe('high');
-      expect(exportedTask.status).toBe('TODO');
-      expect(exportedTask.project).toBe('Work');
+      expect(exportedTask?.id).toBe('1');
+      expect(exportedTask?.title).toBe('Test Task 1');
+      expect(exportedTask?.description).toContain('special characters');
+      expect(exportedTask?.priority).toBe('high');
+      expect(exportedTask?.status).toBe('TODO');
+      expect(exportedTask?.project).toBe('Work');
     });
 
     it('should format JSON with indentation', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(mockTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(mockTasks);
 
       const result = await service.exportTasks();
 
@@ -178,15 +250,25 @@ describe('TaskExportService', () => {
     });
 
     it('should include version information in metadata', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(mockTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(mockTasks);
 
       const result = await service.exportTasks();
 
-      expect(result.data?.metadata.version).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(result.data?.metadata.version).toBe('1.0.0');
     });
 
     it('should include exportedAt timestamp in metadata', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(mockTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(mockTasks);
 
       const beforeTime = Date.now();
       const result = await service.exportTasks();
@@ -199,7 +281,12 @@ describe('TaskExportService', () => {
 
   describe('Export Tasks - Edge Cases', () => {
     it('should handle empty task list', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(emptyTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(emptyTasks);
 
       const result = await service.exportTasks();
 
@@ -209,7 +296,12 @@ describe('TaskExportService', () => {
     });
 
     it('should handle large task dataset', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(largeTaskDataset));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(largeTaskDataset);
 
       const result = await service.exportTasks();
 
@@ -241,7 +333,12 @@ describe('TaskExportService', () => {
           updatedAt: new Date(),
         },
       ];
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(tasksWithSpecialChars));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(tasksWithSpecialChars);
 
       const result = await service.exportTasks();
 
@@ -263,7 +360,12 @@ describe('TaskExportService', () => {
           updatedAt: new Date(),
         },
       ];
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(tasksWithoutDescription));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(tasksWithoutDescription);
 
       const result = await service.exportTasks();
 
@@ -284,7 +386,12 @@ describe('TaskExportService', () => {
           updatedAt: new Date(),
         },
       ];
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(tasksWithLongTitle));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(tasksWithLongTitle);
 
       const result = await service.exportTasks();
 
@@ -304,7 +411,12 @@ describe('TaskExportService', () => {
           updatedAt: new Date('2024-01-15T10:30:00.000Z'),
         },
       ];
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(tasksWithTimezones));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(tasksWithTimezones);
 
       const result = await service.exportTasks();
 
@@ -352,15 +464,20 @@ describe('TaskExportService', () => {
           updatedAt: new Date(),
         },
       ];
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(tasksAllProjects));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(tasksAllProjects);
 
       const result = await service.exportTasks();
 
       expect(result.success).toBe(true);
-      expect(result.data?.metadata.projectBreakdown.Personal).toBe(1);
-      expect(result.data?.metadata.projectBreakdown.Work).toBe(1);
-      expect(result.data?.metadata.projectBreakdown.Study).toBe(1);
-      expect(result.data?.metadata.projectBreakdown.General).toBe(1);
+      expect(result.data?.metadata.projectBreakdown['Personal']).toBe(1);
+      expect(result.data?.metadata.projectBreakdown['Work']).toBe(1);
+      expect(result.data?.metadata.projectBreakdown['Study']).toBe(1);
+      expect(result.data?.metadata.projectBreakdown['General']).toBe(1);
     });
 
     it('should handle tasks with all priority levels', async () => {
@@ -393,34 +510,51 @@ describe('TaskExportService', () => {
           updatedAt: new Date(),
         },
       ];
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(tasksAllPriorities));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(tasksAllPriorities);
 
       const result = await service.exportTasks();
 
       expect(result.success).toBe(true);
-      expect(result.data?.metadata.priorityBreakdown.low).toBe(1);
-      expect(result.data?.metadata.priorityBreakdown.medium).toBe(1);
-      expect(result.data?.metadata.priorityBreakdown.high).toBe(1);
+      expect(result.data?.metadata.priorityBreakdown['low']).toBe(1);
+      expect(result.data?.metadata.priorityBreakdown['medium']).toBe(1);
+      expect(result.data?.metadata.priorityBreakdown['high']).toBe(1);
     });
   });
 
   describe('Export Tasks - Error Scenarios', () => {
-    it('should handle localStorage disabled error', async () => {
-      localStorageServiceSpy.getItem.and.throwError(
-        new DOMException('Storage is disabled', 'SecurityError')
-      );
+    it('should handle localStorage service error', async () => {
+      const mockError: StorageError = new Error('Storage disabled') as StorageError;
+      mockError.name = 'StorageDisabledError';
+      mockError.isStorageDisabled = true;
+      
+      const mockStorageResult: StorageResult<string> = {
+        success: false,
+        error: mockError,
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
 
       const result = await service.exportTasks();
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
-      expect(result.error?.message).toContain('disabled');
+      expect(result.error?.name).toBe('StorageDisabledError');
     });
 
     it('should handle quota exceeded error', async () => {
-      localStorageServiceSpy.getItem.and.throwError(
-        new DOMException('Quota exceeded', 'QuotaExceededError')
-      );
+      const mockError: StorageError = new Error('Quota exceeded') as StorageError;
+      mockError.name = 'QuotaExceededError';
+      mockError.isQuotaExceeded = true;
+      
+      const mockStorageResult: StorageResult<string> = {
+        success: false,
+        error: mockError,
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
 
       const result = await service.exportTasks();
 
@@ -429,59 +563,49 @@ describe('TaskExportService', () => {
       expect(result.error?.name).toBe('QuotaExceededError');
     });
 
-    it('should handle JSON parsing error', async () => {
-      localStorageServiceSpy.getItem.and.returnValue('invalid json{{{');
+    it('should handle validation error for invalid task data', async () => {
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue([{ invalid: 'task' }]);
 
       const result = await service.exportTasks();
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
-      expect(result.error?.message).toContain('parse');
+      expect(result.error?.name).toBe('ValidationError');
     });
 
-    it('should handle null task data', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(null);
+    it('should handle null decrypted data', async () => {
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(null);
 
       const result = await service.exportTasks();
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
-    });
-
-    it('should handle corrupted task data', async () => {
-      localStorageServiceSpy.getItem.and.returnValue('{"incomplete": "data"');
-
-      const result = await service.exportTasks();
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
-    });
-
-    it('should handle empty string task data', async () => {
-      localStorageServiceSpy.getItem.and.returnValue('');
-
-      const result = await service.exportTasks();
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
-    });
-
-    it('should handle undefined task data', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(undefined);
-
-      const result = await service.exportTasks();
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
+      expect(result.error?.name).toBe('ValidationError');
     });
 
     it('should handle invalid task structure', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify([{ invalid: 'task' }]));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue([{ invalid: 'task' }]);
 
       const result = await service.exportTasks();
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
+      expect(result.error?.name).toBe('ValidationError');
     });
 
     it('should handle missing required fields in task', async () => {
@@ -491,18 +615,30 @@ describe('TaskExportService', () => {
           // Missing required fields
         },
       ];
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(invalidTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(invalidTasks);
 
       const result = await service.exportTasks();
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
+      expect(result.error?.name).toBe('ValidationError');
     });
 
-    it('should handle storage access denied error', async () => {
-      localStorageServiceSpy.getItem.and.throwError(
-        new DOMException('Access denied', 'SecurityError')
-      );
+    it('should handle security error', async () => {
+      const mockError: StorageError = new Error('Access denied') as StorageError;
+      mockError.name = 'SecurityError';
+      mockError.isSecurityError = true;
+      
+      const mockStorageResult: StorageResult<string> = {
+        success: false,
+        error: mockError,
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
 
       const result = await service.exportTasks();
 
@@ -510,6 +646,7 @@ describe('TaskExportService', () => {
       expect(result.error).toBeDefined();
       expect(result.error?.name).toBe('SecurityError');
     });
+
   });
 
   describe('Filename Generation', () => {
@@ -518,7 +655,7 @@ describe('TaskExportService', () => {
 
       const filename = service['generateFilename']();
 
-      expect(filename).toBe('taskflow_backup_2024-12-25.json');
+      expect(filename).toBe('taskgo_backup_2024-12-25.json');
     });
 
     it('should handle leap year dates', () => {
@@ -526,7 +663,7 @@ describe('TaskExportService', () => {
 
       const filename = service['generateFilename']();
 
-      expect(filename).toBe('taskflow_backup_2024-02-29.json');
+      expect(filename).toBe('taskgo_backup_2024-02-29.json');
     });
 
     it('should handle end of month dates', () => {
@@ -534,7 +671,7 @@ describe('TaskExportService', () => {
 
       const filename = service['generateFilename']();
 
-      expect(filename).toBe('taskflow_backup_2024-01-31.json');
+      expect(filename).toBe('taskgo_backup_2024-01-31.json');
     });
 
     it('should handle single-digit months and days', () => {
@@ -542,7 +679,7 @@ describe('TaskExportService', () => {
 
       const filename = service['generateFilename']();
 
-      expect(filename).toBe('taskflow_backup_2024-01-05.json');
+      expect(filename).toBe('taskgo_backup_2024-01-05.json');
     });
 
     it('should not include time component in filename', () => {
@@ -552,13 +689,18 @@ describe('TaskExportService', () => {
 
       expect(filename).not.toContain('14:30');
       expect(filename).not.toContain('T');
-      expect(filename).toBe('taskflow_backup_2024-06-15.json');
+      expect(filename).toBe('taskgo_backup_2024-06-15.json');
     });
   });
 
   describe('Metadata Generation', () => {
     it('should generate metadata with correct structure', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(mockTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(mockTasks);
 
       const result = await service.exportTasks();
 
@@ -573,7 +715,12 @@ describe('TaskExportService', () => {
     });
 
     it('should calculate correct project breakdown', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(mockTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(mockTasks);
 
       const result = await service.exportTasks();
 
@@ -584,7 +731,12 @@ describe('TaskExportService', () => {
     });
 
     it('should calculate correct status breakdown', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(mockTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(mockTasks);
 
       const result = await service.exportTasks();
 
@@ -595,7 +747,12 @@ describe('TaskExportService', () => {
     });
 
     it('should calculate correct priority breakdown', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(mockTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(mockTasks);
 
       const result = await service.exportTasks();
 
@@ -606,7 +763,12 @@ describe('TaskExportService', () => {
     });
 
     it('should include data size in metadata', async () => {
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify(mockTasks));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue(mockTasks);
 
       const result = await service.exportTasks();
 
@@ -628,7 +790,12 @@ describe('TaskExportService', () => {
         updatedAt: new Date(),
       };
 
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify([taskWithAllFields]));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue([taskWithAllFields]);
 
       const result = await service.exportTasks();
 
@@ -654,7 +821,12 @@ describe('TaskExportService', () => {
         updatedAt: new Date('2024-01-20T15:45:00.000Z'),
       };
 
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify([taskWithDates]));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue([taskWithDates]);
 
       const result = await service.exportTasks();
       const parsed = JSON.parse(result.data!.jsonString);
@@ -677,7 +849,12 @@ describe('TaskExportService', () => {
       // Create cyclic reference (though Task type prevents this, test service handles it)
       (task as any).self = task;
 
-      localStorageServiceSpy.getItem.and.returnValue(JSON.stringify([task]));
+      const mockStorageResult: StorageResult<string> = {
+        success: true,
+        data: 'encrypted-data',
+      };
+      localStorageServiceSpy.getItem.mockResolvedValue(mockStorageResult);
+      cryptoServiceSpy.decrypt.mockReturnValue([task]);
 
       // Service should handle this gracefully
       const result = await service.exportTasks();

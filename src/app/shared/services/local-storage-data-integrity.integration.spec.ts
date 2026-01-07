@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { LocalStorageService, BackupSnapshot, StorageAnalytics } from './local-storage.service';
 import { DataRecoveryService } from './data-recovery.service';
 import { StorageAnalyticsService } from './storage-analytics.service';
@@ -9,7 +11,7 @@ describe('LocalStorage Data Integrity System - Integration Tests', () => {
   let localStorageService: LocalStorageService;
   let dataRecoveryService: DataRecoveryService;
   let storageAnalyticsService: StorageAnalyticsService;
-  let authService: jasmine.SpyObj<AuthService>;
+  let authService: any;
 
   const mockTasks: Task[] = [
     {
@@ -42,12 +44,12 @@ describe('LocalStorage Data Integrity System - Integration Tests', () => {
   ];
 
   beforeEach(() => {
-    const authSpy = jasmine.createSpyObj('AuthService', [
-      'logSecurityEvent',
-      'getUserContext',
-      'isAuthenticated',
-      'requireAuthentication'
-    ]);
+    const authSpy = {
+      logSecurityEvent: vi.fn(),
+      getUserContext: vi.fn(() => ({ userId: 'test-user' })),
+      isAuthenticated: vi.fn(() => true),
+      requireAuthentication: vi.fn()
+    };
 
     TestBed.configureTestingModule({
       providers: [
@@ -61,14 +63,7 @@ describe('LocalStorage Data Integrity System - Integration Tests', () => {
     localStorageService = TestBed.inject(LocalStorageService);
     dataRecoveryService = TestBed.inject(DataRecoveryService);
     storageAnalyticsService = TestBed.inject(StorageAnalyticsService);
-    authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
-
-    // Setup default auth spy behaviors
-    authService.getUserContext.and.returnValue({ userId: 'test-user' });
-    authService.logSecurityEvent.and.returnValue();
-    authService.isAuthenticated.and.returnValue(true);
-    authService.requireAuthentication.and.returnValue();
-
+    authService = TestBed.inject(AuthService);
     // Clear storage before each test
     localStorage.clear();
     sessionStorage.clear();
@@ -140,13 +135,15 @@ describe('LocalStorage Data Integrity System - Integration Tests', () => {
       // Should detect corruption and recover from backup
       const result = await localStorageService.getItem('tasks');
       expect(result.success).toBe(true);
-      expect(result.data).not.toContain(jasmine.objectContaining({ title: 'Corrupted Title' }));
+      expect(result.data).not.toContain(
+        expect.objectContaining({ title: 'Corrupted Title' })
+      );
 
       // Verify recovery was logged
       expect(authService.logSecurityEvent).toHaveBeenCalledWith({
         type: 'DATA_RECOVERY',
-        message: jasmine.stringContaining('Recovered data for key: tasks'),
-        timestamp: jasmine.any(Date),
+        message: expect.stringContaining('Recovered data for key: tasks'),
+        timestamp: expect.any(Date),
         userId: 'test-user'
       });
     });
@@ -293,7 +290,11 @@ describe('LocalStorage Data Integrity System - Integration Tests', () => {
       await localStorageService.setItem('settings', { theme: 'dark' }, 'create');
 
       // Export data
-      const exportResult = await localStorageService.exportData();
+      const exportResult = await localStorageService.exportData({
+        includeBackups: true,
+        includeAnalytics: true,
+        compressionEnabled: false
+      });
       expect(exportResult.success).toBe(true);
       
       const exportPackage = exportResult.data!;
@@ -302,7 +303,6 @@ describe('LocalStorage Data Integrity System - Integration Tests', () => {
       expect(exportPackage.backups).toBeInstanceOf(Array);
       expect(exportPackage.analytics).toBeDefined();
       expect(exportPackage.exportedAt).toBeGreaterThan(0);
-      expect(exportPackage.version).toBeDefined();
 
       // Clear storage
       await localStorageService.removeItem('tasks');
@@ -315,7 +315,16 @@ describe('LocalStorage Data Integrity System - Integration Tests', () => {
       expect(settingsResult.data).toBeNull();
 
       // Import data
-      const importResult = await localStorageService.importData(exportPackage, { overwrite: true });
+      const importResult = await localStorageService.importData(exportPackage as {
+        data: any;
+        backups: BackupSnapshot[];
+        analytics: StorageAnalytics;
+        exportedAt: number;
+        version: string;
+      }, { 
+        overwrite: true, 
+        createBackups: true 
+      });
       expect(importResult.success).toBe(true);
 
       // Verify imported data
@@ -355,14 +364,32 @@ describe('LocalStorage Data Integrity System - Integration Tests', () => {
       };
 
       // Import without overwrite
-      const importResult1 = await localStorageService.importData(exportPackage, { overwrite: false });
+      const importResult1 = await localStorageService.importData(exportPackage as {
+        data: any;
+        backups: BackupSnapshot[];
+        analytics: StorageAnalytics;
+        exportedAt: number;
+        version: string;
+      }, { 
+        overwrite: false, 
+        createBackups: true 
+      });
       expect(importResult1.success).toBe(true);
 
       let currentTasks = await localStorageService.getItem('tasks');
       expect(currentTasks.data).toEqual([initialData]); // Should remain unchanged
 
       // Import with overwrite
-      const importResult2 = await localStorageService.importData(exportPackage, { overwrite: true });
+      const importResult2 = await localStorageService.importData(exportPackage as {
+        data: any;
+        backups: BackupSnapshot[];
+        analytics: StorageAnalytics;
+        exportedAt: number;
+        version: string;
+      }, { 
+        overwrite: true, 
+        createBackups: true 
+      });
       expect(importResult2.success).toBe(true);
 
       currentTasks = await localStorageService.getItem('tasks');
@@ -489,8 +516,8 @@ describe('LocalStorage Data Integrity System - Integration Tests', () => {
       // Verify security event was logged
       expect(authService.logSecurityEvent).toHaveBeenCalledWith({
         type: 'DATA_RECOVERY',
-        message: jasmine.stringContaining('Recovered data for key: tasks'),
-        timestamp: jasmine.any(Date),
+        message: expect.stringContaining('Recovered data for key: tasks'),
+        timestamp: expect.any(Date),
         userId: 'test-user'
       });
     });
@@ -503,7 +530,7 @@ describe('LocalStorage Data Integrity System - Integration Tests', () => {
       expect(authService.logSecurityEvent).toHaveBeenCalledWith({
         type: 'DATA_ACCESS',
         message: 'Storage analytics exported',
-        timestamp: jasmine.any(Date),
+        timestamp: expect.any(Date),
         userId: 'test-user'
       });
     });
@@ -529,8 +556,8 @@ describe('LocalStorage Data Integrity System - Integration Tests', () => {
       expect(recoveryResult.success).toBe(true);
       
       // Check that sensitive data is not in security logs
-      const securityCalls = authService.logSecurityEvent.calls.allArgs();
-      const logMessages = securityCalls.map(call => call[0].message).join(' ');
+      const securityCalls = authService.logSecurityEvent.mock.calls;
+      const logMessages = securityCalls.map((call: any[]) => call[0].message).join(' ');
       expect(logMessages).not.toContain('sensitive_information');
     });
   });

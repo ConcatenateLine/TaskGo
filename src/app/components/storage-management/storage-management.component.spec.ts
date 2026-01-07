@@ -1,263 +1,619 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
+import { Component, signal, computed } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { StorageManagementComponent } from './storage-management.component';
 import { LocalStorageService, BackupSnapshot } from '../../shared/services/local-storage.service';
 import { DataRecoveryService } from '../../shared/services/data-recovery.service';
 import { StorageAnalyticsService } from '../../shared/services/storage-analytics.service';
 import { AuthService } from '../../shared/services/auth.service';
+import { TaskExportService } from '../../shared/services/task-export.service';
 import { Task } from '../../shared/models/task.model';
+
+// Create mock implementations that we can control more granularly
+const createLocalStorageServiceMock = () => {
+  const mock = {
+    getStorageAnalytics: vi.fn(),
+    getStorageHealthReport: vi.fn(),
+    getBackupHistory: vi.fn(),
+    cleanupAllBackups: vi.fn(),
+    exportData: vi.fn(),
+    importData: vi.fn(),
+    restoreFromBackup: vi.fn(),
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+  };
+  return mock;
+};
+
+const createDataRecoveryServiceMock = () => ({
+  performRecovery: vi.fn(),
+  performBatchRecovery: vi.fn(),
+});
+
+const createStorageAnalyticsServiceMock = () => ({
+  generateDetailedAnalytics: vi.fn(),
+  getStorageGrowthPrediction: vi.fn(),
+});
+
+const createAuthServiceMock = () => ({
+  getUserContext: vi.fn(),
+  logSecurityEvent: vi.fn(),
+});
+
+const createTaskExportServiceMock = () => ({
+  exportTasks: vi.fn(),
+});
+
+// Test data factory functions for consistency
+const createMockTask = (overrides: Partial<Task> = {}): Task => ({
+  id: 'test-task-1',
+  title: 'Test Task',
+  priority: 'medium',
+  status: 'TODO',
+  project: 'Work',
+  createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-01'),
+  ...overrides,
+});
+
+const createMockBackup = (overrides: Partial<BackupSnapshot> = {}): BackupSnapshot => ({
+  id: 'backup_123',
+  timestamp: Date.now(),
+  data: [createMockTask()],
+  metadata: {
+    version: '1.0.0',
+    timestamp: Date.now(),
+    checksum: 'abc123',
+    crc32: 'def456',
+    backupId: 'backup_123',
+    operation: 'update',
+  },
+  operation: 'update',
+  key: 'taskgo_tasks',
+  compressed: false,
+  ...overrides,
+});
 
 describe('StorageManagementComponent', () => {
   let component: StorageManagementComponent;
   let fixture: ComponentFixture<StorageManagementComponent>;
-  let localStorageService: jasmine.SpyObj<LocalStorageService>;
-  let dataRecoveryService: jasmine.SpyObj<DataRecoveryService>;
-  let storageAnalyticsService: jasmine.SpyObj<StorageAnalyticsService>;
-  let authService: jasmine.SpyObj<AuthService>;
+  let localStorageService: ReturnType<typeof createLocalStorageServiceMock>;
+  let dataRecoveryService: ReturnType<typeof createDataRecoveryServiceMock>;
+  let storageAnalyticsService: ReturnType<typeof createStorageAnalyticsServiceMock>;
+  let authService: ReturnType<typeof createAuthServiceMock>;
+  let taskExportService: ReturnType<typeof createTaskExportServiceMock>;
 
-  const mockTask: Task = {
-    id: '1',
-    title: 'Test Task',
-    priority: 'medium',
-    status: 'TODO',
-    project: 'Work',
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01')
+  // Helper to create file objects for testing
+  const createMockFile = (content: string, filename = 'test.json'): File => {
+    return new File([content], filename, { type: 'application/json' });
   };
 
-  const mockBackup: BackupSnapshot = {
-    id: 'backup_123',
-    timestamp: Date.now(),
-    data: [mockTask],
-    metadata: {
-      version: '1.0.0',
-      timestamp: Date.now(),
-      checksum: 'abc123',
-      crc32: 'def456',
-      backupId: 'backup_123',
-      operation: 'update'
-    },
-    operation: 'update',
-    key: 'tasks',
-    compressed: false
+  // Helper to mock confirm dialogs
+  const mockConfirm = (returnValue: boolean) => {
+    vi.spyOn(window, 'confirm').mockReturnValue(returnValue);
+  };
+
+  // Helper to mock alerts
+  const mockAlert = () => {
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    return alertSpy;
+  };
+
+  // Helper to mock URL.createObjectURL and revokeObjectURL
+  const mockBlobOperations = () => {
+    const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('mock-url');
+    const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    return { createObjectURLSpy, revokeObjectURLSpy };
   };
 
   beforeEach(async () => {
-    const localStorageSpy = jasmine.createSpyObj('LocalStorageService', [
-      'getStorageAnalytics',
-      'getStorageHealthReport',
-      'getBackupHistory',
-      'cleanupAllBackups',
-      'exportData',
-      'importData',
-      'restoreFromBackup'
-    ]);
-
-    const recoverySpy = jasmine.createSpyObj('DataRecoveryService', [
-      'performRecovery',
-      'performBatchRecovery'
-    ]);
-
-    const analyticsSpy = jasmine.createSpyObj('StorageAnalyticsService', [
-      'generateDetailedAnalytics',
-      'getStorageGrowthPrediction'
-    ]);
-
-    const authSpy = jasmine.createSpyObj('AuthService', [
-      'getUserContext',
-      'logSecurityEvent'
-    ]);
+    // Create fresh mock instances
+    localStorageService = createLocalStorageServiceMock();
+    dataRecoveryService = createDataRecoveryServiceMock();
+    storageAnalyticsService = createStorageAnalyticsServiceMock();
+    authService = createAuthServiceMock();
+    taskExportService = createTaskExportServiceMock();
 
     await TestBed.configureTestingModule({
       imports: [StorageManagementComponent],
       providers: [
-        { provide: LocalStorageService, useValue: localStorageSpy },
-        { provider: DataRecoveryService, useValue: recoverySpy },
-        { provider: StorageAnalyticsService, useValue: analyticsSpy },
-        { provider: AuthService, useValue: authSpy }
-      ]
+        { provide: LocalStorageService, useValue: localStorageService },
+        { provide: DataRecoveryService, useValue: dataRecoveryService },
+        { provide: StorageAnalyticsService, useValue: storageAnalyticsService },
+        { provide: AuthService, useValue: authService },
+        { provide: TaskExportService, useValue: taskExportService },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(StorageManagementComponent);
     component = fixture.componentInstance;
-    localStorageService = TestBed.inject(LocalStorageService) as jasmine.SpyObj<LocalStorageService>;
-    dataRecoveryService = TestBed.inject(DataRecoveryService) as jasmine.SpyObj<DataRecoveryService>;
-    storageAnalyticsService = TestBed.inject(StorageAnalyticsService) as jasmine.SpyObj<StorageAnalyticsService>;
-    authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
 
-    // Setup default spy behaviors
-    authService.getUserContext.and.returnValue({ userId: 'test-user' });
-    authService.logSecurityEvent.and.returnValue();
-    localStorageService.getStorageAnalytics.and.resolveTo({
-      success: true,
-      data: {
-        totalOperations: 10,
-        backupOperations: 5,
-        recoveryOperations: 1,
-        quotaExceededEvents: 0,
-        corruptionEvents: 0,
-        averageDataSize: 1024,
-        peakUsage: 5120,
-        currentUsage: 3072,
-        availableSpace: 5 * 1024 * 1024,
-        usagePercentage: 60,
-        operationFrequency: { tasks: 5, settings: 2 },
-        backupSizeDistribution: { '<1KB': 2, '1-10KB': 3 }
-      }
+    // Setup default mock behaviors - keep minimal
+    authService.getUserContext.mockReturnValue({ userId: 'test-user' });
+    authService.logSecurityEvent.mockReturnValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe('Component Initialization', () => {
+    it('should create successfully', () => {
+      expect(component).toBeTruthy();
     });
 
-    localStorageService.getStorageHealthReport.and.resolveTo({
-      success: true,
-      data: {
-        status: 'healthy',
-        usage: {
-          used: 3072,
-          available: 5 * 1024 * 1024 - 3072,
-          percentage: 60
-        },
-        analytics: jasmine.any(Object),
-        backupCount: 5,
-        corruptionEvents: 0,
-        recommendations: ['Storage system operating normally']
-      }
+    it('should initialize with default values', () => {
+      expect(component.isLoading()).toBe(false);
+      expect(component.activeTab()).toBe('overview');
+      expect(component.analytics()).toBeNull();
+      expect(component.healthReport()).toBeNull();
+      expect(component.backupHistory()).toEqual([]);
+      expect(component.selectedBackup()).toBeNull();
     });
 
-    localStorageService.getBackupHistory.and.resolveTo({
-      success: true,
-      data: [mockBackup]
-    });
+    it('should load storage data on initialization', async () => {
+      const mockAnalytics = { totalOperations: 10, backupOperations: 5 };
+      const mockHealthReport = { status: 'healthy', usage: { percentage: 60 } };
+      const mockBackupHistory = [createMockBackup()];
 
-    localStorageService.cleanupAllBackups.and.resolveTo({
-      success: true,
-      data: true
-    });
-
-    localStorageService.exportData.and.resolveTo({
-      success: true,
-      data: {
-        data: { tasks: [mockTask] },
-        backups: [mockBackup],
-        analytics: jasmine.any(Object),
-        exportedAt: Date.now(),
-        version: '1.0.0'
-      }
-    });
-
-    localStorageService.restoreFromBackup.and.resolveTo({
-      success: true,
-      data: [mockTask]
-    });
-
-    dataRecoveryService.performRecovery.and.resolveTo({
-      success: true,
-      data: {
+      localStorageService.getStorageAnalytics.mockResolvedValue({
         success: true,
-        strategy: 'auto',
-        attempts: 1,
-        errors: [],
-        warnings: [],
-        recoveryTime: 100,
-        backupUsed: mockBackup
-      }
-    });
+        data: mockAnalytics,
+      });
+      localStorageService.getStorageHealthReport.mockResolvedValue({
+        success: true,
+        data: mockHealthReport,
+      });
+      localStorageService.getBackupHistory.mockResolvedValue({
+        success: true,
+        data: mockBackupHistory,
+      });
 
-    storageAnalyticsService.generateDetailedAnalytics.and.resolveTo({
-      growthRate: 512,
-      averageBackupSize: 2048,
-      compressionRatio: 1.0,
-      hotKeys: [{ key: 'tasks', accessCount: 5, lastAccess: Date.now() }],
-      cleanupEfficiency: { totalCleanupRuns: 0, spaceFreed: 0, averageRunTime: 0 },
-      patterns: { peakUsageTimes: [], operationBursts: [], errorPatterns: [] },
-      recommendations: {
-        immediate: [],
-        shortTerm: ['Consider archiving old data'],
-        longTerm: ['Implement data consolidation']
-      }
-    });
-
-    storageAnalyticsService.getStorageGrowthPrediction.and.resolveTo({
-      predictedUsage: 4096,
-      quotaReachedDate: undefined,
-      confidence: 0.7
-    });
-
-    fixture.detectChanges();
-  });
-
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-
-  describe('Initial Loading', () => {
-    it('should load storage data on init', async () => {
+      await component.ngOnInit();
       await fixture.whenStable();
-      fixture.detectChanges();
 
-      expect(localStorageService.getStorageAnalytics).toHaveBeenCalled();
-      expect(localStorageService.getStorageHealthReport).toHaveBeenCalled();
-      expect(localStorageService.getBackupHistory).toHaveBeenCalled();
-      expect(component.analytics()).toBeTruthy();
-      expect(component.healthReport()).toBeTruthy();
+      expect(localStorageService.getStorageAnalytics).toHaveBeenCalledTimes(1);
+      expect(localStorageService.getStorageHealthReport).toHaveBeenCalledTimes(1);
+      expect(localStorageService.getBackupHistory).toHaveBeenCalledTimes(2); // tasks + archived
+      expect(component.analytics()).toEqual(mockAnalytics);
+      expect(component.healthReport()).toEqual(mockHealthReport);
+      expect(component.backupHistory()).toEqual(mockBackupHistory);
     });
 
-    it('should show loading state during operations', () => {
-      component.isLoading.set(true);
-      fixture.detectChanges();
+    it('should handle initialization errors gracefully', async () => {
+      localStorageService.getStorageAnalytics.mockRejectedValue(new Error('Service unavailable'));
+      localStorageService.getStorageHealthReport.mockRejectedValue(new Error('Service unavailable'));
+      localStorageService.getBackupHistory.mockRejectedValue(new Error('Service unavailable'));
 
-      const loadingIndicator = fixture.debugElement.query(By.css('.loading-indicator'));
-      expect(loadingIndicator).toBeTruthy();
-      expect(loadingIndicator.nativeElement.textContent).toContain('Processing...');
-    });
+      await component.ngOnInit();
+      await fixture.whenStable();
 
-    it('should hide loading indicator when not loading', () => {
-      component.isLoading.set(false);
-      fixture.detectChanges();
-
-      const loadingIndicator = fixture.debugElement.query(By.css('.loading-indicator'));
-      expect(loadingIndicator).toBeFalsy();
+      expect(component.isLoading()).toBe(false);
+      expect(component.analytics()).toBeNull();
+      expect(component.healthReport()).toBeNull();
+      expect(component.backupHistory()).toEqual([]);
     });
   });
 
-  describe('Storage Status Display', () => {
-    it('should display healthy status correctly', async () => {
-      await fixture.whenStable();
-      fixture.detectChanges();
-
-      const statusIcon = fixture.debugElement.query(By.css('.storage-status-icon'));
-      const statusText = fixture.debugElement.query(By.css('h2'));
-      
-      expect(statusIcon.nativeElement.textContent).toBe('✅');
-      expect(statusText.nativeElement.textContent).toContain('Healthy');
+  describe('Computed Properties', () => {
+    beforeEach(() => {
+      component.healthReport.set({ status: 'healthy', usage: { percentage: 75 } });
+      component.backupHistory.set([createMockBackup()]);
     });
 
-    it('should display storage usage percentage', async () => {
-      await fixture.whenStable();
-      fixture.detectChanges();
-
-      const progressFill = fixture.debugElement.query(By.css('.progress-fill'));
-      const percentageText = fixture.debugElement.query(By.css('.metric span'));
+    it('should compute isHealthy correctly', () => {
+      expect(component.isHealthy()).toBe(true);
       
-      expect(progressFill.nativeElement.style.width).toBe('60%');
-      expect(percentageText.nativeElement.textContent).toBe('60.0%');
+      component.healthReport.set({ status: 'warning' });
+      expect(component.isHealthy()).toBe(false);
+      
+      component.healthReport.set({ status: 'critical' });
+      expect(component.isHealthy()).toBe(false);
     });
 
-    it('should show recommendations when available', async () => {
-      await fixture.whenStable();
-      fixture.detectChanges();
-
-      const recommendations = fixture.debugElement.query(By.css('.recommendations'));
-      expect(recommendations).toBeTruthy();
+    it('should compute storageUsagePercentage correctly', () => {
+      expect(component.storageUsagePercentage()).toBe(75);
       
-      const recommendationItems = fixture.debugElement.queryAll(By.css('.recommendations li'));
-      expect(recommendationItems.length).toBeGreaterThan(0);
-      expect(recommendationItems[0].nativeElement.textContent).toContain('Storage system operating normally');
+      component.healthReport.set({ usage: { percentage: 90 } });
+      expect(component.storageUsagePercentage()).toBe(90);
+      
+      component.healthReport.set({});
+      expect(component.storageUsagePercentage()).toBe(0);
     });
 
+    it('should compute hasBackups correctly', () => {
+      expect(component.hasBackups()).toBe(true);
+      
+      component.backupHistory.set([]);
+      expect(component.hasBackups()).toBe(false);
+    });
+
+    it('should compute canRecover correctly', () => {
+      expect(component.canRecover()).toBe(true); // has backups
+      
+      component.backupHistory.set([]);
+      expect(component.canRecover()).toBe(false); // no backups, healthy status
+      
+      component.healthReport.set({ status: 'critical' });
+      expect(component.canRecover()).toBe(false); // critical status but no backups
+    });
+  });
+
+  describe('Storage Operations', () => {
+    describe('Export Functionality', () => {
+      it('should export storage data successfully', async () => {
+        const mockExportData = {
+          data: { tasks: [createMockTask()] },
+          backups: [createMockBackup()],
+          exportedAt: Date.now(),
+          version: '1.0.0',
+        };
+
+        localStorageService.exportData.mockResolvedValue({
+          success: true,
+          data: mockExportData,
+        });
+
+        const { createObjectURLSpy, revokeObjectURLSpy } = mockBlobOperations();
+        const mockCreateElement = vi.spyOn(document, 'createElement').mockImplementation((tagName) => {
+          if (tagName === 'a') {
+            const link = {
+              href: '',
+              download: '',
+              click: vi.fn(),
+            } as any;
+            return link;
+          }
+          return document.createElement(tagName);
+        });
+        const mockAppendChild = vi.spyOn(document.body, 'appendChild').mockImplementation(() => document.body);
+        const mockRemoveChild = vi.spyOn(document.body, 'removeChild').mockImplementation(() => document.body);
+        const alertSpy = mockAlert();
+
+        await component.exportStorageData();
+
+        expect(localStorageService.exportData).toHaveBeenCalledWith(component.exportOptions());
+        expect(createObjectURLSpy).toHaveBeenCalled();
+        expect(revokeObjectURLSpy).toHaveBeenCalled();
+        expect(mockCreateElement).toHaveBeenCalledWith('a');
+        expect(mockAppendChild).toHaveBeenCalled();
+        expect(mockRemoveChild).toHaveBeenCalled();
+        expect(alertSpy).toHaveBeenCalledWith('Storage data exported successfully!');
+        expect(component.isLoading()).toBe(false);
+      });
+
+      it('should handle export failures', async () => {
+        localStorageService.exportData.mockResolvedValue({
+          success: false,
+          error: { message: 'Export failed' },
+        });
+
+        const alertSpy = mockAlert();
+
+        await component.exportStorageData();
+
+        expect(alertSpy).toHaveBeenCalledWith('Export failed: Export failed');
+        expect(component.isLoading()).toBe(false);
+      });
+
+      it('should handle export exceptions', async () => {
+        localStorageService.exportData.mockRejectedValue(new Error('Network error'));
+
+        const alertSpy = mockAlert();
+
+        await component.exportStorageData();
+
+        expect(alertSpy).toHaveBeenCalledWith('Export failed: Network error');
+        expect(component.isLoading()).toBe(false);
+      });
+    });
+
+    describe('Import Functionality', () => {
+      it('should import storage data successfully', async () => {
+        const mockImportData = {
+          data: { tasks: [createMockTask()] },
+          version: '1.0.0',
+        };
+
+        localStorageService.importData.mockResolvedValue({
+          success: true,
+        });
+
+        mockConfirm(true);
+        const alertSpy = mockAlert();
+        const loadStorageDataSpy = vi.spyOn(component, 'loadStorageData').mockResolvedValue(undefined);
+
+        const mockEvent = {
+          target: {
+            files: [createMockFile(JSON.stringify(mockImportData))],
+          },
+        } as any;
+
+        await component.importStorageData(mockEvent);
+
+        expect(localStorageService.importData).toHaveBeenCalledWith(mockImportData, {
+          overwrite: true,
+          createBackups: true,
+        });
+        expect(alertSpy).toHaveBeenCalledWith('Storage data imported successfully!');
+        expect(loadStorageDataSpy).toHaveBeenCalled();
+        expect(component.isLoading()).toBe(false);
+      });
+
+      it('should cancel import when confirmation is rejected', async () => {
+        mockConfirm(false);
+
+        const mockEvent = {
+          target: { files: null },
+        } as any;
+
+        await component.importStorageData(mockEvent);
+
+        expect(localStorageService.importData).not.toHaveBeenCalled();
+        expect(component.isLoading()).toBe(false);
+      });
+
+      it('should handle invalid file format', async () => {
+        mockConfirm(true);
+        const alertSpy = mockAlert();
+
+        const mockEvent = {
+          target: {
+            files: [createMockFile('invalid json')],
+          },
+        } as any;
+
+        await component.importStorageData(mockEvent);
+
+        expect(alertSpy).toHaveBeenCalledWith('Import failed: Invalid file format');
+        expect(component.isLoading()).toBe(false);
+      });
+    });
+
+    describe('Cleanup Functionality', () => {
+      it('should perform cleanup successfully', async () => {
+        localStorageService.cleanupAllBackups.mockResolvedValue({
+          success: true,
+          data: true,
+        });
+
+        mockConfirm(true);
+        const alertSpy = mockAlert();
+        const loadBackupHistorySpy = vi.spyOn(component, 'loadBackupHistory').mockResolvedValue(undefined);
+        const loadHealthReportSpy = vi.spyOn(component, 'loadHealthReport').mockResolvedValue(undefined);
+
+        await component.performCleanup();
+
+        expect(localStorageService.cleanupAllBackups).toHaveBeenCalled();
+        expect(alertSpy).toHaveBeenCalledWith('Cleanup completed successfully!');
+        expect(loadBackupHistorySpy).toHaveBeenCalled();
+        expect(loadHealthReportSpy).toHaveBeenCalled();
+        expect(component.isLoading()).toBe(false);
+      });
+
+      it('should cancel cleanup when confirmation is rejected', async () => {
+        mockConfirm(false);
+
+        await component.performCleanup();
+
+        expect(localStorageService.cleanupAllBackups).not.toHaveBeenCalled();
+        expect(component.isLoading()).toBe(false);
+      });
+
+      it('should handle cleanup failures', async () => {
+        localStorageService.cleanupAllBackups.mockResolvedValue({
+          success: false,
+          error: { message: 'Cleanup failed' },
+        });
+
+        mockConfirm(true);
+        const alertSpy = mockAlert();
+
+        await component.performCleanup();
+
+        expect(alertSpy).toHaveBeenCalledWith('Cleanup failed: Cleanup failed');
+        expect(component.isLoading()).toBe(false);
+      });
+    });
+
+    describe('Recovery Functionality', () => {
+      it('should perform single key recovery successfully', async () => {
+        const mockRecoveryResult = {
+          success: true,
+          data: {
+            success: true,
+            strategy: 'auto',
+            summary: { recovered: 5, failed: 0, warnings: 0 },
+          },
+        };
+
+        dataRecoveryService.performRecovery.mockResolvedValue(mockRecoveryResult);
+
+        component.recoveryOptions.set({ strategy: 'auto', keys: [] });
+        mockConfirm(true);
+        const alertSpy = mockAlert();
+        const loadStorageDataSpy = vi.spyOn(component, 'loadStorageData').mockResolvedValue(undefined);
+
+        await component.performRecovery();
+
+        expect(dataRecoveryService.performRecovery).toHaveBeenCalledWith('taskgo_tasks', { strategy: 'auto' });
+        expect(alertSpy).toHaveBeenCalledWith(
+          'Recovery completed successfully!\n\nRecovered: 5\nFailed: 0\nWarnings: 0'
+        );
+        expect(loadStorageDataSpy).toHaveBeenCalled();
+        expect(component.isLoading()).toBe(false);
+      });
+
+      it('should perform batch recovery when keys are specified', async () => {
+        const mockRecoveryResult = {
+          success: true,
+          data: {
+            success: true,
+            strategy: 'auto',
+            summary: { recovered: 3, failed: 1, warnings: 1 },
+          },
+        };
+
+        dataRecoveryService.performBatchRecovery.mockResolvedValue(mockRecoveryResult);
+
+        component.recoveryOptions.set({ strategy: 'auto', keys: ['tasks', 'settings'] });
+        mockConfirm(true);
+        const alertSpy = mockAlert();
+        const loadStorageDataSpy = vi.spyOn(component, 'loadStorageData').mockResolvedValue(undefined);
+
+        await component.performRecovery();
+
+        expect(dataRecoveryService.performBatchRecovery).toHaveBeenCalledWith(['tasks', 'settings'], {
+          strategy: 'auto',
+        });
+        expect(alertSpy).toHaveBeenCalledWith(
+          'Recovery completed successfully!\n\nRecovered: 3\nFailed: 1\nWarnings: 1'
+        );
+        expect(loadStorageDataSpy).toHaveBeenCalled();
+        expect(component.isLoading()).toBe(false);
+      });
+
+      it('should handle recovery with no data recovered', async () => {
+        const mockRecoveryResult = {
+          success: true,
+          data: {
+            success: true,
+            strategy: 'auto',
+            summary: { recovered: 0, failed: 0, warnings: 0 },
+          },
+        };
+
+        dataRecoveryService.performRecovery.mockResolvedValue(mockRecoveryResult);
+
+        component.recoveryOptions.set({ strategy: 'auto', keys: [] });
+        mockConfirm(true);
+        const alertSpy = mockAlert();
+
+        await component.performRecovery();
+
+        expect(alertSpy).toHaveBeenCalledWith(
+          'Recovery completed but no data was recovered. Data may already be valid.'
+        );
+        expect(component.isLoading()).toBe(false);
+      });
+
+      it('should handle recovery failures', async () => {
+        dataRecoveryService.performRecovery.mockResolvedValue({
+          success: false,
+          error: { message: 'Recovery failed' },
+        });
+
+        component.recoveryOptions.set({ strategy: 'auto', keys: [] });
+        mockConfirm(true);
+        const alertSpy = mockAlert();
+
+        await component.performRecovery();
+
+        expect(alertSpy).toHaveBeenCalledWith('Recovery failed: Recovery failed');
+        expect(component.isLoading()).toBe(false);
+      });
+    });
+
+    describe('Backup Restoration', () => {
+      it('should restore from backup successfully', async () => {
+        const mockBackup = createMockBackup();
+        const mockRestoreResult = { success: true, data: [createMockTask()] };
+
+        localStorageService.restoreFromBackup.mockResolvedValue(mockRestoreResult);
+
+        mockConfirm(true);
+        const alertSpy = mockAlert();
+        const loadStorageDataSpy = vi.spyOn(component, 'loadStorageData').mockResolvedValue(undefined);
+
+        await component.restoreFromBackup(mockBackup);
+
+        expect(localStorageService.restoreFromBackup).toHaveBeenCalledWith('taskgo_tasks', 'backup_123');
+        expect(alertSpy).toHaveBeenCalledWith('Successfully restored taskgo_tasks from backup!');
+        expect(loadStorageDataSpy).toHaveBeenCalled();
+        expect(component.isLoading()).toBe(false);
+      });
+
+      it('should cancel restore when confirmation is rejected', async () => {
+        const mockBackup = createMockBackup();
+        mockConfirm(false);
+
+        await component.restoreFromBackup(mockBackup);
+
+        expect(localStorageService.restoreFromBackup).not.toHaveBeenCalled();
+        expect(component.isLoading()).toBe(false);
+      });
+
+      it('should handle restore failures', async () => {
+        const mockBackup = createMockBackup();
+        localStorageService.restoreFromBackup.mockResolvedValue({
+          success: false,
+          error: { message: 'Restore failed' },
+        });
+
+        mockConfirm(true);
+        const alertSpy = mockAlert();
+
+        await component.restoreFromBackup(mockBackup);
+
+        expect(alertSpy).toHaveBeenCalledWith('Restore failed: Restore failed');
+        expect(component.isLoading()).toBe(false);
+      });
+    });
+  });
+
+  describe('Task Export (US-010)', () => {
+    it('should export tasks successfully', async () => {
+      const mockTaskExportResult = {
+        success: true,
+        data: {
+          tasks: [createMockTask()],
+          exportedAt: Date.now(),
+          totalTasks: 1,
+        },
+      };
+
+      taskExportService.exportTasks.mockResolvedValue(mockTaskExportResult);
+
+      await component.exportTasksOnly();
+
+      expect(taskExportService.exportTasks).toHaveBeenCalled();
+      expect(component.taskExportResult()).toEqual(mockTaskExportResult);
+      expect(component.taskExportError()).toBeNull();
+      expect(component.isLoading()).toBe(false);
+    });
+
+    it('should handle task export failures', async () => {
+      const mockTaskExportResult = {
+        success: false,
+        error: { message: 'Task export failed' },
+      };
+
+      taskExportService.exportTasks.mockResolvedValue(mockTaskExportResult);
+
+      await component.exportTasksOnly();
+
+      expect(component.taskExportResult()).toEqual(mockTaskExportResult);
+      expect(component.taskExportError()).toBe('Task export failed');
+      expect(component.isLoading()).toBe(false);
+    });
+
+    it('should handle task export exceptions', async () => {
+      taskExportService.exportTasks.mockRejectedValue(new Error('Service unavailable'));
+
+      await component.exportTasksOnly();
+
+      expect(component.taskExportError()).toBe('Service unavailable');
+      expect(component.isLoading()).toBe(false);
+    });
+  });
+
+  describe('Utility Methods', () => {
     it('should format bytes correctly', () => {
+      expect(component.formatBytes(0)).toBe('0 Bytes');
       expect(component.formatBytes(1024)).toBe('1 KB');
       expect(component.formatBytes(1024 * 1024)).toBe('1 MB');
-      expect(component.formatBytes(0)).toBe('0 Bytes');
+      expect(component.formatBytes(1024 * 1024 * 1024)).toBe('1 GB');
+      expect(component.formatBytes(1536)).toBe('1.5 KB');
     });
 
     it('should format dates correctly', () => {
@@ -265,363 +621,269 @@ describe('StorageManagementComponent', () => {
       const formattedDate = component.formatDate(timestamp);
       expect(formattedDate).toBe(new Date(timestamp).toLocaleString());
     });
-  });
 
-  describe('Tab Navigation', () => {
-    it('should have all tabs', () => {
-      const tabs = fixture.debugElement.queryAll(By.css('.tab-button'));
-      expect(tabs.length).toBe(5);
-      expect(tabs[0].nativeElement.textContent).toContain('Overview');
-      expect(tabs[1].nativeElement.textContent).toContain('Backups');
-      expect(tabs[2].nativeElement.textContent).toContain('Analytics');
-      expect(tabs[3].nativeElement.textContent).toContain('Recovery');
-      expect(tabs[4].nativeElement.textContent).toContain('Export');
+    it('should get operation colors correctly', () => {
+      expect(component.getOperationColor('create')).toBe('#10b981');
+      expect(component.getOperationColor('update')).toBe('#3b82f6');
+      expect(component.getOperationColor('delete')).toBe('#ef4444');
+      expect(component.getOperationColor('unknown')).toBe('#6b7280');
     });
 
-    it('should switch tabs when clicked', () => {
-      const backupsTab = fixture.debugElement.queryAll(By.css('.tab-button'))[1];
-      backupsTab.nativeElement.click();
-      fixture.detectChanges();
+    it('should get storage status colors correctly', () => {
+      expect(component.getStorageStatusColor('healthy')).toBe('#10b981');
+      expect(component.getStorageStatusColor('warning')).toBe('#f59e0b');
+      expect(component.getStorageStatusColor('critical')).toBe('#ef4444');
+      expect(component.getStorageStatusColor('unknown')).toBe('#6b7280');
+    });
 
+    it('should get storage status icons correctly', () => {
+      expect(component.getStorageStatusIcon('healthy')).toBe('✅');
+      expect(component.getStorageStatusIcon('warning')).toBe('⚠️');
+      expect(component.getStorageStatusIcon('critical')).toBe('🚨');
+      expect(component.getStorageStatusIcon('unknown')).toBe('❓');
+    });
+
+    it('should get JSON size correctly', () => {
+      const obj = { name: 'test', value: 123 };
+      expect(component.getJsonSize(obj)).toBe(JSON.stringify(obj).length);
+    });
+
+    it('should get object keys correctly', () => {
+      const obj = { key1: 'value1', key2: 'value2' };
+      expect(component.getObjectKeys(obj)).toEqual(['key1', 'key2']);
+    });
+
+    it('should get object entries correctly', () => {
+      const obj = { key1: 'value1', key2: 'value2' };
+      expect(component.getObjectEntries(obj)).toEqual([
+        ['key1', 'value1'],
+        ['key2', 'value2'],
+      ]);
+    });
+  });
+
+  describe('State Management', () => {
+    it('should manage tab navigation correctly', () => {
+      expect(component.activeTab()).toBe('overview');
+
+      component.setActiveTab('backups');
       expect(component.activeTab()).toBe('backups');
-      
-      const backupsPanel = fixture.debugElement.query(By.css('#backups-panel'));
-      expect(backupsPanel).toBeTruthy();
+
+      component.setActiveTab('invalid-tab');
+      expect(component.activeTab()).toBe('backups'); // should not change
     });
 
-    it('should show active tab styling', () => {
-      const activeTab = fixture.debugElement.query(By.css('.tab-button.active'));
-      expect(activeTab).toBeTruthy();
-      expect(activeTab.nativeElement.textContent).toContain('Overview');
-    });
-  });
+    it('should manage recovery options correctly', () => {
+      expect(component.recoveryOptions()).toEqual({ strategy: 'auto', keys: [] });
 
-  describe('Backups Tab', () => {
-    beforeEach(async () => {
-      component.activeTab.set('backups');
-      await fixture.whenStable();
-      fixture.detectChanges();
-    });
+      component.addRecoveryKey('test-key');
+      expect(component.recoveryOptions().keys).toContain('test-key');
 
-    it('should display backup history', () => {
-      const backupCards = fixture.debugElement.queryAll(By.css('.backup-card'));
-      expect(backupCards.length).toBe(1);
-      
-      const backupCard = backupCards[0];
-      expect(backupCard.nativeElement.textContent).toContain('UPDATE');
-      expect(backupCard.nativeElement.textContent).toContain('tasks');
-      expect(backupCard.nativeElement.textContent).toContain('backup_123');
+      component.addRecoveryKey(''); // should not add empty key
+      expect(component.recoveryOptions().keys.length).toBe(1);
+
+      component.addRecoveryKey('test-key'); // should not add duplicate
+      expect(component.recoveryOptions().keys.length).toBe(1);
+
+      component.removeRecoveryKey(0);
+      expect(component.recoveryOptions().keys).toEqual([]);
+
+      component.updateRecoveryStrategy('manual');
+      expect(component.recoveryOptions().strategy).toBe('manual');
     });
 
-    it('should show operation colors correctly', () => {
-      const operationElement = fixture.debugElement.query(By.css('.backup-operation'));
-      expect(operationElement.nativeElement.style.color).toBe(component.getOperationColor('update'));
+    it('should manage export options correctly', () => {
+      expect(component.exportOptions()).toEqual({
+        includeBackups: true,
+        includeAnalytics: true,
+        compressionEnabled: false,
+      });
+
+      component.updateExportOption('includeBackups', false);
+      expect(component.exportOptions().includeBackups).toBe(false);
     });
 
-    it('should select backup when clicked', () => {
-      const backupCard = fixture.debugElement.query(By.css('.backup-card'));
-      backupCard.nativeElement.click();
-      fixture.detectChanges();
+    it('should manage backup selection correctly', () => {
+      const mockBackup = createMockBackup();
 
-      expect(component.selectedBackup()).toEqual(mockBackup);
-      expect(backupCard.nativeElement.classList.contains('selected')).toBe(true);
-    });
+      expect(component.selectedBackup()).toBeNull();
 
-    it('should restore from backup when restore button clicked', () => {
-      spyOn(window, 'confirm').and.returnValue(true);
-      
-      const restoreButton = fixture.debugElement.query(By.css('.backup-actions button'));
-      restoreButton.nativeElement.click();
-      fixture.detectChanges();
-
-      expect(localStorageService.restoreFromBackup).toHaveBeenCalledWith('tasks', 'backup_123');
-    });
-
-    it('should not restore when confirmation cancelled', () => {
-      spyOn(window, 'confirm').and.returnValue(false);
-      
-      const restoreButton = fixture.debugElement.query(By.css('.backup-actions button'));
-      restoreButton.nativeElement.click();
-      fixture.detectChanges();
-
-      expect(localStorageService.restoreFromBackup).not.toHaveBeenCalled();
+      component.selectBackup(mockBackup);
+      expect(component.selectedBackup()).toBe(mockBackup);
     });
   });
 
-  describe('Analytics Tab', () => {
-    beforeEach(async () => {
-      component.activeTab.set('analytics');
-      await fixture.whenStable();
-      fixture.detectChanges();
-    });
+  describe('Event Handlers', () => {
+    it('should handle recovery key press correctly', () => {
+      const mockEvent = new KeyboardEvent('keydown', {
+        key: 'Enter',
+      });
+      Object.defineProperty(mockEvent, 'target', {
+        writable: false,
+        value: {
+          value: 'test-key',
+        },
+      });
 
-    it('should display analytics overview', () => {
-      const analyticsCards = fixture.debugElement.queryAll(By.css('.analytics-card'));
-      expect(analyticsCards.length).toBeGreaterThan(0);
-      
-      const totalOperationsCard = analyticsCards.find(card => 
-        card.nativeElement.textContent.includes('Total Operations')
+      component.handleRecoveryKeyPress(mockEvent);
+      expect(component.recoveryOptions().keys).toContain('test-key');
+      expect((mockEvent.target as any).value).toBe('');
+
+      // Test non-Enter key
+      const mockEvent2 = new KeyboardEvent('keydown', {
+        key: 'Tab',
+      });
+      Object.defineProperty(mockEvent2, 'target', {
+        writable: false,
+        value: {
+          value: 'another-key',
+        },
+      });
+
+      component.handleRecoveryKeyPress(mockEvent2);
+      expect(component.recoveryOptions().keys).not.toContain('another-key');
+    });
+  });
+
+  describe('Data Corruption Simulation', () => {
+    it('should simulate data corruption successfully', async () => {
+      const mockCurrentData = [createMockTask()];
+      localStorageService.getItem.mockResolvedValue({
+        success: true,
+        data: mockCurrentData,
+      });
+      localStorageService.setItem.mockResolvedValue({
+        success: true,
+      });
+
+      mockConfirm(true);
+      const alertSpy = mockAlert();
+      const loadStorageDataSpy = vi.spyOn(component, 'loadStorageData').mockResolvedValue(undefined);
+
+      // Mock Math.random to get predictable corruption type
+      vi.spyOn(Math, 'random').mockReturnValue(0.5); // Will select 'missing_structure'
+
+      await component.simulateCorruption();
+
+      expect(localStorageService.getItem).toHaveBeenCalledWith('taskgo_tasks');
+      expect(localStorageService.setItem).toHaveBeenCalledWith('taskgo_tasks', [
+        { id: 'test-task-1' },
+      ]);
+      expect(alertSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Data corrupted using method: missing_structure')
       );
-      expect(totalOperationsCard).toBeTruthy();
-      expect(totalOperationsCard.nativeElement.textContent).toContain('10');
-    });
-
-    it('should show operation frequency', () => {
-      const frequencyItems = fixture.debugElement.queryAll(By.css('.frequency-item'));
-      expect(frequencyItems.length).toBeGreaterThan(0);
-      
-      const tasksFrequency = frequencyItems.find(item => 
-        item.nativeElement.textContent.includes('tasks')
-      );
-      expect(tasksFrequency).toBeTruthy();
-      expect(tasksFrequency.nativeElement.textContent).toContain('5 operations');
-    });
-  });
-
-  describe('Recovery Tab', () => {
-    beforeEach(async () => {
-      component.activeTab.set('recovery');
-      await fixture.whenStable();
-      fixture.detectChanges();
-    });
-
-    it('should have recovery strategy selector', () => {
-      const strategySelect = fixture.debugElement.query(By.css('#recovery-strategy'));
-      expect(strategySelect).toBeTruthy();
-      
-      const options = strategySelect.nativeElement.querySelectorAll('option');
-      expect(options.length).toBe(3);
-      expect(options[0].value).toBe('auto');
-      expect(options[1].value).toBe('conservative');
-      expect(options[2].value).toBe('manual');
-    });
-
-    it('should add recovery keys', () => {
-      const keyInput = fixture.debugElement.query(By.css('input[placeholder*="Enter key"]'));
-      keyInput.nativeElement.value = 'test_key';
-      keyInput.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
-      fixture.detectChanges();
-
-      expect(component.recoveryOptions().keys).toContain('test_key');
-    });
-
-    it('should remove recovery keys', () => {
-      component.recoveryOptions.update(options => ({ ...options, keys: ['key1', 'key2'] }));
-      fixture.detectChanges();
-
-      const removeButtons = fixture.debugElement.queryAll(By.css('.btn-remove'));
-      expect(removeButtons.length).toBe(2);
-      
-      removeButtons[0].nativeElement.click();
-      fixture.detectChanges();
-
-      expect(component.recoveryOptions().keys).toEqual(['key2']);
-    });
-
-    it('should perform recovery when start button clicked', () => {
-      spyOn(window, 'confirm').and.returnValue(true);
-      
-      component.recoveryOptions.update(options => ({ ...options, strategy: 'auto' }));
-      const startButton = fixture.debugElement.query(By.css('.recovery-actions button'));
-      startButton.nativeElement.click();
-      fixture.detectChanges();
-
-      expect(dataRecoveryService.performRecovery).toHaveBeenCalledWith('tasks', { strategy: 'auto' });
-    });
-  });
-
-  describe('Export Tab', () => {
-    beforeEach(async () => {
-      component.activeTab.set('export');
-      await fixture.whenStable();
-      fixture.detectChanges();
-    });
-
-    it('should have export options', () => {
-      const includeBackupsCheckbox = fixture.debugElement.query(By.css('input[type="checkbox"][value*="backups"]'));
-      const includeAnalyticsCheckbox = fixture.debugElement.query(By.css('input[type="checkbox"][value*="analytics"]'));
-      
-      expect(includeBackupsCheckbox).toBeTruthy();
-      expect(includeAnalyticsCheckbox).toBeTruthy();
-    });
-
-    it('should export data when export button clicked', () => {
-      spyOn(component, 'exportStorageData').and.callThrough();
-      spyOn(document, 'createElement').and.callThrough();
-      spyOn(document.body, 'appendChild').and.callThrough();
-      spyOn(document.body, 'removeChild').and.callThrough();
-      spyOn(URL, 'createObjectURL').and.callThrough();
-      spyOn(URL, 'revokeObjectURL').and.callThrough();
-      
-      const exportButton = fixture.debugElement.query(By.css('.export-section button'));
-      exportButton.nativeElement.click();
-      fixture.detectChanges();
-
-      expect(localStorageService.exportData).toHaveBeenCalled();
-    });
-
-    it('should import data when file selected', () => {
-      const file = new File(['{"test": "data"}'], 'test.json', { type: 'application/json' });
-      const fileInput = fixture.debugElement.query(By.css('input[type="file"]'));
-      
-      spyOn(window, 'confirm').and.returnValue(true);
-      spyOn(component, 'importStorageData').and.callThrough();
-      
-      fileInput.nativeElement.files = [file];
-      fileInput.nativeElement.dispatchEvent(new Event('change', { bubbles: true }));
-      fixture.detectChanges();
-
-      expect(component.importStorageData).toHaveBeenCalled();
-    });
-  });
-
-  describe('Actions', () => {
-    it('should refresh data when refresh button clicked', async () => {
-      spyOn(component, 'loadStorageData').and.callThrough();
-      
-      const refreshButton = fixture.debugElement.query(By.css('.storage-management__actions button'));
-      refreshButton.nativeElement.click();
-      fixture.detectChanges();
-
-      expect(component.loadStorageData).toHaveBeenCalled();
-    });
-
-    it('should perform cleanup when cleanup button clicked', () => {
-      spyOn(window, 'confirm').and.returnValue(true);
-      spyOn(component, 'performCleanup').and.callThrough();
-      
-      const cleanupButton = fixture.debugElement.queryAll(By.css('.storage-management__actions button'))[1];
-      cleanupButton.nativeElement.click();
-      fixture.detectChanges();
-
-      expect(localStorageService.cleanupAllBackups).toHaveBeenCalled();
-    });
-
-    it('should export data when export button clicked', () => {
-      spyOn(component, 'exportStorageData').and.callThrough();
-      
-      const exportButton = fixture.debugElement.queryAll(By.css('.storage-management__actions button'))[2];
-      exportButton.nativeElement.click();
-      fixture.detectChanges();
-
-      expect(component.exportStorageData).toHaveBeenCalled();
-    });
-  });
-
-  describe('Computed Properties', () => {
-    it('should compute health status correctly', () => {
-      component.healthReport.set({ status: 'healthy' });
-      expect(component.isHealthy()).toBe(true);
-      
-      component.healthReport.set({ status: 'warning' });
-      expect(component.isHealthy()).toBe(false);
-    });
-
-    it('should compute storage usage percentage correctly', () => {
-      component.healthReport.set({
-        usage: { percentage: 75 }
-      });
-      expect(component.storageUsagePercentage()).toBe(75);
-    });
-
-    it('should compute if backups exist correctly', () => {
-      component.backupHistory.set([]);
-      expect(component.hasBackups()).toBe(false);
-      
-      component.backupHistory.set([mockBackup]);
-      expect(component.hasBackups()).toBe(true);
-    });
-
-    it('should compute if recovery is possible correctly', () => {
-      component.healthReport.set({ status: 'critical' });
-      component.backupHistory.set([mockBackup]);
-      expect(component.canRecover()).toBe(true);
-      
-      component.healthReport.set({ status: 'healthy' });
-      component.backupHistory.set([]);
-      expect(component.canRecover()).toBe(false);
-    });
-  });
-
-  describe('Accessibility', () => {
-    it('should have proper ARIA labels on tabs', () => {
-      const tabs = fixture.debugElement.queryAll(By.css('.tab-button'));
-      tabs.forEach((tab, index) => {
-        expect(tab.nativeElement.getAttribute('role')).toBe('tab');
-        expect(tab.nativeElement.getAttribute('aria-selected')).toBe(index === 0 ? 'true' : 'false');
-      });
-    });
-
-    it('should have proper ARIA labels on panels', () => {
-      const panels = fixture.debugElement.queryAll(By.css('.tab-panel'));
-      expect(panels[0].nativeElement.getAttribute('role')).toBe('tabpanel');
-      expect(panels[0].nativeElement.getAttribute('aria-labelledby')).toBeDefined();
-    });
-
-    it('should have proper button labels', () => {
-      const buttons = fixture.debugElement.queryAll(By.css('button'));
-      buttons.forEach(button => {
-        expect(button.nativeElement.getAttribute('aria-label')).toBeDefined();
-      });
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('should handle service failures gracefully', async () => {
-      localStorageService.getStorageAnalytics.and.resolveTo({
-        success: false,
-        error: {
-          name: 'UnknownError',
-          message: 'Service unavailable',
-          isStorageDisabled: false
-        }
-      });
-
-      await component.loadStorageData();
-      fixture.detectChanges();
-
-      expect(component.analytics()).toBeNull();
+      expect(loadStorageDataSpy).toHaveBeenCalled();
       expect(component.isLoading()).toBe(false);
     });
 
-    it('should handle export failures', async () => {
-      localStorageService.exportData.and.resolveTo({
-        success: false,
-        error: {
-          name: 'UnknownError',
-          message: 'Export failed',
-          isStorageDisabled: false
-        }
+    it('should handle corruption when no data exists', async () => {
+      localStorageService.getItem.mockResolvedValue({
+        success: true,
+        data: null,
       });
 
-      spyOn(window, 'alert').and.callThrough();
-      
-      await component.exportStorageData();
-      
-      expect(window.alert).toHaveBeenCalledWith('Export failed: Export failed');
+      mockConfirm(true);
+      const alertSpy = mockAlert();
+
+      await component.simulateCorruption();
+
+      expect(alertSpy).toHaveBeenCalledWith('No data found to corrupt. Add some tasks first.');
+      expect(component.isLoading()).toBe(false);
     });
 
-    it('should handle recovery failures', async () => {
-      dataRecoveryService.performRecovery.and.resolveTo({
-        success: false,
-        error: {
-          name: 'RecoveryError',
-          message: 'Recovery failed',
-          isRecoveryError: true
-        }
-      });
+    it('should cancel corruption when confirmation is rejected', async () => {
+      mockConfirm(false);
 
-      spyOn(window, 'confirm').and.returnValue(true);
-      spyOn(window, 'alert').and.callThrough();
-      
-      component.activeTab.set('recovery');
-      fixture.detectChanges();
+      await component.simulateCorruption();
 
-      const startButton = fixture.debugElement.query(By.css('.recovery-actions button'));
-      startButton.nativeElement.click();
-      fixture.detectChanges();
+      expect(localStorageService.getItem).not.toHaveBeenCalled();
+      expect(component.isLoading()).toBe(false);
+    });
+  });
 
-      expect(window.alert).toHaveBeenCalledWith('Recovery failed: Recovery failed');
+  describe('Detailed Analytics', () => {
+    it('should generate detailed analytics successfully', async () => {
+      const mockDetailedAnalytics = {
+        growthRate: 512,
+        averageBackupSize: 2048,
+        compressionRatio: 1.0,
+        hotKeys: [{ key: 'tasks', accessCount: 5, lastAccess: Date.now() }],
+      };
+
+      const mockGrowthPrediction = {
+        predictedUsage: 4096,
+        quotaReachedDate: undefined,
+        confidence: 0.7,
+      };
+
+      storageAnalyticsService.generateDetailedAnalytics.mockResolvedValue(mockDetailedAnalytics);
+      storageAnalyticsService.getStorageGrowthPrediction.mockResolvedValue(mockGrowthPrediction);
+
+      const consoleSpy = vi.spyOn(console, 'group').mockImplementation(() => {});
+      const consoleTableSpy = vi.spyOn(console, 'table').mockImplementation(() => {});
+      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const consoleGroupEndSpy = vi.spyOn(console, 'groupEnd').mockImplementation(() => {});
+      const alertSpy = mockAlert();
+
+      await component.getDetailedAnalytics();
+
+      expect(storageAnalyticsService.generateDetailedAnalytics).toHaveBeenCalled();
+      expect(storageAnalyticsService.getStorageGrowthPrediction).toHaveBeenCalled();
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Detailed analytics logged to console. Check developer tools for full report.'
+      );
+      expect(component.isLoading()).toBe(false);
+    });
+
+    it('should handle detailed analytics failures', async () => {
+      storageAnalyticsService.generateDetailedAnalytics.mockRejectedValue(new Error('Analytics failed'));
+
+      const alertSpy = mockAlert();
+
+      await component.getDetailedAnalytics();
+
+      expect(alertSpy).toHaveBeenCalledWith('Failed to generate detailed analytics: Analytics failed');
+      expect(component.isLoading()).toBe(false);
+    });
+  });
+
+  describe('Integration Tests', () => {
+    it('should handle complete data refresh cycle', async () => {
+      const mockAnalytics = { totalOperations: 10 };
+      const mockHealthReport = { status: 'healthy', usage: { percentage: 60 } };
+      const mockBackupHistory = [createMockBackup()];
+
+      localStorageService.getStorageAnalytics.mockResolvedValue({ success: true, data: mockAnalytics });
+      localStorageService.getStorageHealthReport.mockResolvedValue({ success: true, data: mockHealthReport });
+      localStorageService.getBackupHistory.mockResolvedValue({ success: true, data: mockBackupHistory });
+
+      await component.refresh();
+
+      expect(localStorageService.getStorageAnalytics).toHaveBeenCalled();
+      expect(localStorageService.getStorageHealthReport).toHaveBeenCalled();
+      expect(localStorageService.getBackupHistory).toHaveBeenCalled();
+      expect(component.analytics()).toBe(mockAnalytics);
+      expect(component.healthReport()).toBe(mockHealthReport);
+      expect(component.backupHistory()).toEqual(mockBackupHistory);
+    });
+
+    it('should handle concurrent operations safely', async () => {
+      // Simulate multiple operations happening at once
+      const analyticsPromise = new Promise(resolve => setTimeout(() => resolve({ success: true, data: {} }), 50));
+      const healthPromise = new Promise(resolve => setTimeout(() => resolve({ success: true, data: {} }), 30));
+      const backupPromise = new Promise(resolve => setTimeout(() => resolve({ success: true, data: [] }), 20));
+
+      localStorageService.getStorageAnalytics.mockReturnValue(analyticsPromise as any);
+      localStorageService.getStorageHealthReport.mockReturnValue(healthPromise as any);
+      localStorageService.getBackupHistory.mockReturnValue(backupPromise as any);
+
+      const startTime = Date.now();
+      await component.loadStorageData();
+      const endTime = Date.now();
+
+      // Should complete in roughly the time of the longest operation
+      expect(endTime - startTime).toBeLessThan(100);
+      expect(component.isLoading()).toBe(false);
     });
   });
 });
