@@ -4,7 +4,10 @@ import { CryptoService } from './crypto.service';
 import { ValidationService } from './validation.service';
 import { AuthService } from './auth.service';
 import { SecurityService } from './security.service';
+import { LocalStorageService } from './local-storage.service';
+import { AutoSaveService } from './auto-save.service';
 import { Task } from '../models/task.model';
+import { vi } from 'vitest';
 
 describe('TaskService - Delete Functionality (US-004)', () => {
   let service: TaskService;
@@ -12,6 +15,8 @@ describe('TaskService - Delete Functionality (US-004)', () => {
   let validationService: any;
   let authService: any;
   let securityService: any;
+  let localStorageService: any;
+  let autoSaveService: any;
 
   const mockTask: Task = {
     id: 'test-task-1',
@@ -24,11 +29,14 @@ describe('TaskService - Delete Functionality (US-004)', () => {
     updatedAt: new Date('2024-01-15T10:00:00'),
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     const cryptoServiceSpy = {
       getItem: vi.fn(),
       setItem: vi.fn(),
-      getStorageKey: vi.fn().mockReturnValue('task_storage_key')
+      getStorageKey: vi.fn().mockReturnValue('task_storage_key'),
+      encrypt: vi.fn().mockReturnValue('encrypted-data'),
+      decrypt: vi.fn(),
+      clearTaskStorage: vi.fn()
     };
     
     const validationServiceSpy = {
@@ -42,12 +50,29 @@ describe('TaskService - Delete Functionality (US-004)', () => {
       logSecurityEvent: vi.fn(),
       getUserContext: vi.fn(),
       requireAuthentication: vi.fn(),
-      isAuthenticated: vi.fn()
+      isAuthenticated: vi.fn(),
+      createAnonymousUser: vi.fn()
     };
     
     const securityServiceSpy = {
       checkRateLimit: vi.fn(),
       validateRequest: vi.fn()
+    };
+
+    const localStorageServiceSpy = {
+      getItem: vi.fn(),
+      setItem: vi.fn()
+    };
+
+    const autoSaveServiceSpy = {
+      queueTaskCreation: vi.fn(),
+      queueTaskUpdate: vi.fn(),
+      queueTaskDeletion: vi.fn(),
+      getMetrics: vi.fn().mockReturnValue({}),
+      forceSync: vi.fn().mockResolvedValue(true),
+      getPendingOperations: vi.fn().mockReturnValue([]),
+      cancelPendingOperation: vi.fn().mockReturnValue(false),
+      updateConfig: vi.fn()
     };
 
     TestBed.configureTestingModule({
@@ -56,7 +81,9 @@ describe('TaskService - Delete Functionality (US-004)', () => {
         { provide: CryptoService, useValue: cryptoServiceSpy },
         { provide: ValidationService, useValue: validationServiceSpy },
         { provide: AuthService, useValue: authServiceSpy },
-        { provide: SecurityService, useValue: securityServiceSpy }
+        { provide: SecurityService, useValue: securityServiceSpy },
+        { provide: LocalStorageService, useValue: localStorageServiceSpy },
+        { provide: AutoSaveService, useValue: autoSaveServiceSpy }
       ]
     });
 
@@ -65,6 +92,8 @@ describe('TaskService - Delete Functionality (US-004)', () => {
     validationService = TestBed.inject(ValidationService);
     authService = TestBed.inject(AuthService);
     securityService = TestBed.inject(SecurityService);
+    localStorageService = TestBed.inject(LocalStorageService);
+    autoSaveService = TestBed.inject(AutoSaveService);
 
     // Setup default mock returns
     authService.getUserContext.mockReturnValue({ userId: 'test-user' });
@@ -75,10 +104,13 @@ describe('TaskService - Delete Functionality (US-004)', () => {
     validationService.validateTaskDescription.mockReturnValue({ isValid: true, sanitized: mockTask.description });
     validationService.validateCSP.mockReturnValue({ isValid: true, violations: [] });
     validationService.sanitizeForDisplay.mockImplementation((input: string) => input);
-    cryptoService.getItem.mockReturnValue([]);
+    
+    // Mock localStorageService to return empty data initially
+    localStorageService.getItem.mockReturnValue(null);
+    cryptoService.decrypt.mockReturnValue([]);
     
     // Initialize with some test data
-    service.initializeMockData();
+    await service.initializeMockData();
   });
 
   describe('Delete Task - Happy Path', () => {
@@ -115,12 +147,18 @@ describe('TaskService - Delete Functionality (US-004)', () => {
       const taskId = service.getTasks()[0].id;
       
       // Clear the mock to test deletion save
-      cryptoService.setItem.mockClear();
+      localStorageService.setItem.mockClear();
+      cryptoService.encrypt.mockClear();
       
       // Delete the task
       service.deleteTask(taskId);
       
-      expect(cryptoService.setItem).toHaveBeenCalledWith('task_storage_key', expect.any(Array));
+      expect(localStorageService.setItem).toHaveBeenCalledWith(
+        'task_storage_key',
+        'encrypted-data',
+        'delete',
+        expect.any(String)
+      );
     });
 
     it('should log security event after successful deletion', () => {
@@ -225,7 +263,7 @@ describe('TaskService - Delete Functionality (US-004)', () => {
       const taskIdToDelete = tasksBefore[0].id;
       
       // Mock save to throw error
-      cryptoService.setItem.mockImplementation(() => {
+      localStorageService.setItem.mockImplementation(() => {
         throw new Error('Storage error');
       });
       
