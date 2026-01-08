@@ -13,6 +13,7 @@ import { SecurityService } from '../../shared/services/security.service';
 import { CryptoService } from '../../shared/services/crypto.service';
 import { Task } from '../../shared/models/task.model';
 import { DomSanitizer } from '@angular/platform-browser';
+import { createCryptoServiceSpy, CryptoServiceSpy } from '../../../test-helpers/crypto-service.mock';
 
 describe('Delete Task Integration Tests (US-004)', () => {
   let component: TaskListComponent;
@@ -72,11 +73,9 @@ describe('Delete Task Integration Tests (US-004)', () => {
       validateRequest: vi.fn()
     };
 
-    const cryptoServiceSpy = {
-      getItem: vi.fn(),
-      setItem: vi.fn(),
+    const cryptoServiceSpy = createCryptoServiceSpy({
       getStorageKey: vi.fn().mockReturnValue('task_storage_key')
-    };
+    });
 
     const sanitizerSpy = {
       sanitize: vi.fn()

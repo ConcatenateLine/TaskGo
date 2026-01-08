@@ -8,13 +8,14 @@ import { CryptoService } from './crypto.service';
 import { LocalStorageService } from './local-storage.service';
 import { AutoSaveService } from './auto-save.service';
 import { vi } from 'vitest';
+import { createCryptoServiceSpy, CryptoServiceSpy } from '../../../test-helpers/crypto-service.mock';
 
 describe('TaskService - Edit Functionality (US-003)', () => {
   let taskService: TaskService;
   let validationService: any;
   let securityService: any;
   let authService: any;
-  let cryptoService: any;
+  let cryptoServiceSpy: CryptoServiceSpy;
   let localStorageService: any;
   let autoSaveService: any;
   let mockTasks: Task[];
@@ -52,14 +53,10 @@ describe('TaskService - Edit Functionality (US-003)', () => {
       createAnonymousUser: vi.fn()
     };
 
-    const cryptoServiceSpy = {
-      getItem: vi.fn(),
-      setItem: vi.fn(),
+    cryptoServiceSpy = createCryptoServiceSpy({
       getStorageKey: vi.fn().mockReturnValue('taskgo_tasks'),
-      encrypt: vi.fn().mockReturnValue('encrypted-data'),
-      decrypt: vi.fn(),
-      clearTaskStorage: vi.fn()
-    };
+      encrypt: vi.fn().mockReturnValue('encrypted-data')
+    });
 
     const localStorageServiceSpy = {
       getItem: vi.fn(),
@@ -93,7 +90,6 @@ describe('TaskService - Edit Functionality (US-003)', () => {
     validationService = TestBed.inject(ValidationService) as any;
     securityService = TestBed.inject(SecurityService) as any;
     authService = TestBed.inject(AuthService) as any;
-    cryptoService = TestBed.inject(CryptoService) as any;
     localStorageService = TestBed.inject(LocalStorageService) as any;
     autoSaveService = TestBed.inject(AutoSaveService) as any;
 
@@ -124,7 +120,7 @@ describe('TaskService - Edit Functionality (US-003)', () => {
     localStorageService.getItem.mockReturnValue({
       data: 'encrypted-mock-data'
     });
-    cryptoService.decrypt.mockReturnValue(mockTasks);
+    cryptoServiceSpy.decrypt.mockReturnValue(mockTasks);
     
     // Initialize service with mock data
     await taskService.initializeMockData();
@@ -358,8 +354,8 @@ describe('TaskService - Edit Functionality (US-003)', () => {
       taskService.updateTask('task-1', updateData);
 
       // Verify the encryption was called with the updated tasks
-      expect(cryptoService.encrypt).toHaveBeenCalledWith(expect.any(Array));
-      const encryptedData = cryptoService.encrypt.mock.calls[0][0];
+      expect(cryptoServiceSpy.encrypt).toHaveBeenCalledWith(expect.any(Array));
+      const encryptedData = cryptoServiceSpy.encrypt.mock.calls[0][0];
       const updatedTask = encryptedData.find((task: Task) => task.id === 'task-1');
       
       expect(updatedTask.title).toBe('Updated Title');
@@ -375,8 +371,8 @@ describe('TaskService - Edit Functionality (US-003)', () => {
       taskService.updateTask('task-1', updateData);
 
       // Verify the encryption was called with all tasks
-      expect(cryptoService.encrypt).toHaveBeenCalledWith(expect.any(Array));
-      const encryptedData = cryptoService.encrypt.mock.calls[0][0];
+      expect(cryptoServiceSpy.encrypt).toHaveBeenCalledWith(expect.any(Array));
+      const encryptedData = cryptoServiceSpy.encrypt.mock.calls[0][0];
       const otherTask = encryptedData.find((task: Task) => task.id === 'task-2');
       
       expect(otherTask.title).toBe(mockTasks[1].title); // Should be unchanged

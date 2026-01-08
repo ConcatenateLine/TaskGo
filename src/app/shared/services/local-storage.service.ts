@@ -15,6 +15,8 @@ export interface StorageError extends Error {
   isQuotaExceeded?: boolean;
   isSecurityError?: boolean;
   isStorageDisabled?: boolean;
+  isSerializationError?: boolean;
+  isValidationError?: boolean;
   isCorruption?: boolean;
   isBackupError?: boolean;
   isRecoveryError?: boolean;

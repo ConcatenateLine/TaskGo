@@ -20,6 +20,9 @@ describe('StartupLoaderComponent', () => {
       reinitialize: vi.fn().mockResolvedValue(undefined)
     };
 
+    // Clear any existing DOM elements
+    document.body.innerHTML = '';
+
     await TestBed.configureTestingModule({
       imports: [StartupLoaderComponent],
       providers: [

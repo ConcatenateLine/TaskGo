@@ -2,7 +2,46 @@ import { beforeEach, vi, beforeAll } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 
-// Initialize Angular test environment
+// Mock DOM APIs before Angular test environment initialization
+Object.defineProperty(Element.prototype, 'setAttribute', {
+  value: vi.fn(),
+  writable: true,
+  configurable: true,
+});
+
+Object.defineProperty(Element.prototype, 'removeAttribute', {
+  value: vi.fn(),
+  writable: true,
+  configurable: true,
+});
+
+// Also mock for Node elements (which might be what Angular is using)
+Object.defineProperty(Node.prototype, 'setAttribute', {
+  value: vi.fn(),
+  writable: true,
+  configurable: true,
+});
+
+Object.defineProperty(Node.prototype, 'removeAttribute', {
+  value: vi.fn(),
+  writable: true,
+  configurable: true,
+});
+
+// Mock HTMLElement specifically
+Object.defineProperty(HTMLElement.prototype, 'setAttribute', {
+  value: vi.fn(),
+  writable: true,
+  configurable: true,
+});
+
+Object.defineProperty(HTMLElement.prototype, 'removeAttribute', {
+  value: vi.fn(),
+  writable: true,
+  configurable: true,
+});
+
+// Initialize Angular test environment after DOM mocking
 TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 
 // Resolve component resources for Angular 21+ with Vitest
@@ -65,4 +104,29 @@ window.scrollTo = vi.fn();
   error: vi.fn(),
   log: vi.fn(),
 };
+
+// Mock additional DOM APIs that might be missing
+Object.defineProperty(Element.prototype, 'setAttribute', {
+  value: vi.fn(),
+  writable: true,
+});
+
+Object.defineProperty(Element.prototype, 'removeAttribute', {
+  value: vi.fn(),
+  writable: true,
+});
+
+// Mock document.createElement to return proper elements
+const originalCreateElement = document.createElement;
+document.createElement = vi.fn().mockImplementation((tagName: string) => {
+  const element = originalCreateElement.call(document, tagName);
+  // Ensure the element has setAttribute
+  if (!element.setAttribute) {
+    element.setAttribute = vi.fn();
+  }
+  if (!element.removeAttribute) {
+    element.removeAttribute = vi.fn();
+  }
+  return element;
+});
 

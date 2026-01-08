@@ -11,6 +11,7 @@ import { AuthService } from '../../shared/services/auth.service';
 import { SecurityService } from '../../shared/services/security.service';
 import { CryptoService } from '../../shared/services/crypto.service';
 import { Task, TaskPriority } from '../../shared/models/task.model';
+import { createCryptoServiceSpy, CryptoServiceSpy } from '../../../test-helpers/crypto-service.mock';
 
 // Simple integration test wrapper
 @Component({
@@ -49,7 +50,7 @@ describe('Task Creation Integration Tests - US-002', () => {
   let validationService: any;
   let authService: any;
   let securityService: any;
-  let cryptoService: any;
+  let cryptoServiceSpy: CryptoServiceSpy;
 
   const validTaskData = {
     title: 'Complete Integration Test',
@@ -58,6 +59,8 @@ describe('Task Creation Integration Tests - US-002', () => {
   };
 
   beforeAll(async () => {
+    cryptoServiceSpy = createCryptoServiceSpy();
+
     TestBed.configureTestingModule({
       imports: [
         FormsModule,
@@ -78,7 +81,7 @@ describe('Task Creation Integration Tests - US-002', () => {
             getUserContext: vi.fn().mockReturnValue({ userId: 'integration-test-user' })
           }
         },
-        { provide: CryptoService, useValue: {} },
+        { provide: CryptoService, useValue: cryptoServiceSpy },
       ],
     });
 
@@ -121,12 +124,10 @@ describe('Task Creation Integration Tests - US-002', () => {
       checkRateLimit: vi.fn().mockReturnValue({ allowed: true, remaining: 100 }),
     };
 
-    const cryptoServiceSpy = {
+    cryptoServiceSpy = createCryptoServiceSpy({
       getItem: vi.fn().mockReturnValue([]),
-      setItem: vi.fn(),
-      clear: vi.fn(),
       getStorageKey: vi.fn().mockReturnValue('test_key'),
-    };
+    });
 
     await TestBed.configureTestingModule({
       imports: [
@@ -149,7 +150,7 @@ describe('Task Creation Integration Tests - US-002', () => {
     validationService = TestBed.inject(ValidationService);
     authService = TestBed.inject(AuthService);
     securityService = TestBed.inject(SecurityService);
-    cryptoService = TestBed.inject(CryptoService);
+    // cryptoService now comes from cryptoServiceSpy injected above
 
     // Setup default mock returns
     const mockTask: Task = {

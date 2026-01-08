@@ -8,10 +8,11 @@ import { LocalStorageService } from './local-storage.service';
 import { AutoSaveService } from './auto-save.service';
 import { Task } from '../models/task.model';
 import { vi } from 'vitest';
+import { createCryptoServiceSpy, CryptoServiceSpy } from '../../../test-helpers/crypto-service.mock';
 
 describe('TaskService - Delete Functionality (US-004)', () => {
   let service: TaskService;
-  let cryptoService: any;
+  let cryptoServiceSpy: CryptoServiceSpy;
   let validationService: any;
   let authService: any;
   let securityService: any;
@@ -30,14 +31,10 @@ describe('TaskService - Delete Functionality (US-004)', () => {
   };
 
   beforeEach(async () => {
-    const cryptoServiceSpy = {
-      getItem: vi.fn(),
-      setItem: vi.fn(),
+    cryptoServiceSpy = createCryptoServiceSpy({
       getStorageKey: vi.fn().mockReturnValue('task_storage_key'),
-      encrypt: vi.fn().mockReturnValue('encrypted-data'),
-      decrypt: vi.fn(),
-      clearTaskStorage: vi.fn()
-    };
+      encrypt: vi.fn().mockReturnValue('encrypted-data')
+    });
     
     const validationServiceSpy = {
       validateTaskTitle: vi.fn(),
@@ -88,7 +85,6 @@ describe('TaskService - Delete Functionality (US-004)', () => {
     });
 
     service = TestBed.inject(TaskService);
-    cryptoService = TestBed.inject(CryptoService);
     validationService = TestBed.inject(ValidationService);
     authService = TestBed.inject(AuthService);
     securityService = TestBed.inject(SecurityService);
@@ -107,7 +103,7 @@ describe('TaskService - Delete Functionality (US-004)', () => {
     
     // Mock localStorageService to return empty data initially
     localStorageService.getItem.mockReturnValue(null);
-    cryptoService.decrypt.mockReturnValue([]);
+    cryptoServiceSpy.decrypt.mockReturnValue([]);
     
     // Initialize with some test data
     await service.initializeMockData();
@@ -148,7 +144,7 @@ describe('TaskService - Delete Functionality (US-004)', () => {
       
       // Clear the mock to test deletion save
       localStorageService.setItem.mockClear();
-      cryptoService.encrypt.mockClear();
+      cryptoServiceSpy.encrypt.mockClear();
       
       // Delete the task
       service.deleteTask(taskId);

@@ -177,8 +177,8 @@ export class TaskExportService {
       ['low', 'medium', 'high'].includes(t.priority) &&
       ['TODO', 'IN_PROGRESS', 'DONE'].includes(t.status) &&
       ['Personal', 'Work', 'Study', 'General'].includes(t.project) &&
-      typeof t.createdAt === 'string' &&
-      typeof t.updatedAt === 'string'
+      (t.createdAt instanceof Date || typeof t.createdAt === 'string') &&
+      (t.updatedAt instanceof Date || typeof t.updatedAt === 'string')
     );
   }
 
@@ -252,6 +252,9 @@ export class TaskExportService {
     error.name = name;
 
     switch (name) {
+      case 'ValidationError':
+        error.isValidationError = true;
+        break;
       case 'QuotaExceededError':
         error.isQuotaExceeded = true;
         break;
@@ -260,6 +263,18 @@ export class TaskExportService {
         break;
       case 'StorageDisabledError':
         error.isStorageDisabled = true;
+        break;
+      case 'SerializationError':
+        error.isSerializationError = true;
+        break;
+      case 'CorruptionError':
+        error.isCorruption = true;
+        break;
+      case 'BackupError':
+        error.isBackupError = true;
+        break;
+      case 'RecoveryError':
+        error.isRecoveryError = true;
         break;
     }
 

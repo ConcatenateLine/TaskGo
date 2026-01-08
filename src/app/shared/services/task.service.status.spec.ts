@@ -5,6 +5,9 @@ import { AuthService } from './auth.service';
 import { CryptoService } from './crypto.service';
 import { ValidationService } from './validation.service';
 import { SecurityService } from './security.service';
+import { LocalStorageService } from './local-storage.service';
+import { AutoSaveService } from './auto-save.service';
+import { vi } from 'vitest';
 
 /**
  * US-005: Change Task Status - RED Phase Tests
@@ -24,24 +27,88 @@ import { SecurityService } from './security.service';
 
 describe('US-005: Change Task Status - Service Layer Tests', () => {
   let service: TaskService;
-  let authService: AuthService;
-  let securityService: SecurityService;
+  let authService: any;
+  let securityService: any;
+  let cryptoService: any;
+  let localStorageService: any;
+  let autoSaveService: any;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      providers: [AuthService, CryptoService, ValidationService, SecurityService],
-    });
+    // Create mock services
+    authService = {
+      isAuthenticated: vi.fn().mockReturnValue(true),
+      createAnonymousUser: vi.fn(),
+      requireAuthentication: vi.fn().mockReturnValue(undefined),
+      getUserContext: vi.fn().mockReturnValue({ userId: 'test-user' }),
+      logSecurityEvent: vi.fn()
+    };
 
-    // Clear localStorage before each test to avoid stale encrypted data
-    const cryptoService = TestBed.inject(CryptoService);
-    cryptoService.clear();
+    securityService = {
+      validateRequest: vi.fn().mockReturnValue({ valid: true, threats: [] }),
+      checkRateLimit: vi.fn().mockReturnValue({ allowed: true, remaining: 100 })
+    };
+
+    cryptoService = {
+      clear: vi.fn(),
+      getStorageKey: vi.fn().mockReturnValue('taskgo_tasks'),
+      getItem: vi.fn().mockResolvedValue(null),
+      setItem: vi.fn().mockResolvedValue(undefined),
+      encrypt: vi.fn().mockImplementation((data: any) => {
+        // Return encrypted data format that matches real service
+        const encryptedContainer = {
+          version: 'v1',
+          data: btoa(JSON.stringify(data))
+        };
+        return JSON.stringify(encryptedContainer);
+      })
+    };
+
+    autoSaveService = {
+      queueTaskCreation: vi.fn(),
+      queueTaskUpdate: vi.fn(),
+      queueTaskDeletion: vi.fn(),
+      getMetrics: vi.fn().mockReturnValue({ totalOperations: 0, pendingOperations: 0 }),
+      forceSync: vi.fn().mockResolvedValue(undefined),
+      getPendingOperations: vi.fn().mockReturnValue([]),
+      cancelPendingOperation: vi.fn().mockReturnValue(false),
+      updateConfig: vi.fn(),
+      handleUpdateOperation: vi.fn(),
+      handleOperationResult: vi.fn(),
+      encrypt: vi.fn().mockImplementation((data: any) => {
+        // Return encrypted data format that matches real service
+        const encryptedContainer = {
+          version: 'v1',
+          data: btoa(JSON.stringify(data))
+        };
+        return JSON.stringify(encryptedContainer);
+      })
+    };
+
+    localStorageService = {
+      getItem: vi.fn().mockResolvedValue(null),
+      setItem: vi.fn().mockResolvedValue(undefined)
+    };
+
+    TestBed.configureTestingModule({
+      providers: [
+        TaskService,
+        { provide: AuthService, useValue: authService },
+        { provide: CryptoService, useValue: cryptoService },
+        { provide: ValidationService, useValue: { 
+          validateTaskTitle: vi.fn().mockImplementation((title: string) => ({ isValid: true, sanitized: title })),
+          validateTaskDescription: vi.fn(),
+          sanitizeForDisplay: vi.fn(),
+          validateCSP: vi.fn().mockReturnValue({ isValid: true, violations: [] })
+        } },
+        { provide: SecurityService, useValue: securityService },
+        { provide: LocalStorageService, useValue: localStorageService },
+        { provide: AutoSaveService, useValue: autoSaveService }
+      ]
+    });
 
     service = TestBed.inject(TaskService);
     authService = TestBed.inject(AuthService);
     securityService = TestBed.inject(SecurityService);
-
-    // Create anonymous user for testing
-    authService.createAnonymousUser();
   });
 
   describe('Status Transition Validation', () => {
@@ -274,8 +341,10 @@ describe('US-005: Change Task Status - Service Layer Tests', () => {
   });
 
   describe('Task Counter Updates', () => {
-    beforeEach(() => {
-      service.initializeMockData();
+    beforeEach(async () => {
+      // Clear any existing data and initialize with mock data
+      cryptoService.getItem.mockResolvedValue(null); // Empty storage
+      await service.initializeMockData();
     });
 
     it('should increment IN_PROGRESS count when moving TODO to IN_PROGRESS', () => {
@@ -505,10 +574,18 @@ describe('US-005: Change Task Status - Service Layer Tests', () => {
       service.changeStatus(task.id, 'IN_PROGRESS');
 
       // ASSERT
-      const storedData = localStorage.getItem('taskgo_tasks');
-      expect(storedData).toBeTruthy();
-      // Data should not contain plain text status
-      expect(storedData).not.toContain('"IN_PROGRESS"');
+      expect(localStorageService.setItem).toHaveBeenCalled();
+      expect(localStorageService.setItem).toHaveBeenCalledWith(
+        'taskgo_tasks',
+        expect.any(String), // encrypted data
+        'update',
+        expect.any(String)
+      );
+      // Data should not contain plain text status (check the encrypted data)
+      const encryptedDataCall = localStorageService.setItem.mock.calls.find(
+        (call: any[]) => call[0] === 'taskgo_tasks'
+      );
+      expect(encryptedDataCall?.[1]).not.toContain('"IN_PROGRESS"');
     });
   });
 

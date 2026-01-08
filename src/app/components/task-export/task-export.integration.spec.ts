@@ -6,6 +6,7 @@ import { LocalStorageService, StorageResult } from '../../shared/services/local-
 import { CryptoService } from '../../shared/services/crypto.service';
 import { Task } from '../../shared/models/task.model';
 import { vi } from 'vitest';
+import { createCryptoServiceSpy, CryptoServiceSpy } from '../../../test-helpers/crypto-service.mock';
 
 describe('TaskExport Integration', () => {
   let component: TaskExportComponent;
@@ -46,10 +47,10 @@ describe('TaskExport Integration', () => {
       data: JSON.stringify(sampleTasks)
     });
 
-    const cryptoServiceSpy = {
+    const cryptoServiceSpy = createCryptoServiceSpy({
       decrypt: vi.fn().mockReturnValue(sampleTasks),
       encrypt: vi.fn().mockReturnValue('encrypted-data')
-    };
+    });
 
     await TestBed.configureTestingModule({
       imports: [TaskExportComponent],

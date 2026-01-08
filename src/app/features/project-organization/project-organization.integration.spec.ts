@@ -13,6 +13,7 @@ import { AuthService } from '../../shared/services/auth.service';
 import { SecurityService } from '../../shared/services/security.service';
 import { CryptoService } from '../../shared/services/crypto.service';
 import { Task, TaskProject } from '../../shared/models/task.model';
+import { createCryptoServiceSpy, CryptoServiceSpy } from '../../../test-helpers/crypto-service.mock';
 
 @Component({
   standalone: true,
@@ -70,7 +71,7 @@ describe('US-007 Integration Tests: Complete Project Workflow', () => {
   let validationService: any;
   let authService: any;
   let securityService: any;
-  let cryptoService: any;
+  let cryptoServiceSpy: CryptoServiceSpy;
 
   const validTaskData = {
     title: 'Complete Project Task',
@@ -96,7 +97,7 @@ describe('US-007 Integration Tests: Complete Project Workflow', () => {
         { provide: ValidationService, useValue: {} },
         { provide: AuthService, useValue: {} },
         { provide: SecurityService, useValue: {} },
-        { provide: CryptoService, useValue: {} },
+        { provide: CryptoService, useValue: cryptoServiceSpy },
       ],
     });
 
@@ -150,12 +151,10 @@ describe('US-007 Integration Tests: Complete Project Workflow', () => {
       checkRateLimit: vi.fn().mockReturnValue({ allowed: true, remaining: 100 })
     };
 
-    const cryptoServiceSpy = {
+    cryptoServiceSpy = createCryptoServiceSpy({
       getItem: vi.fn().mockReturnValue([]),
-      setItem: vi.fn(),
-      clearTaskStorage: vi.fn(),
       getStorageKey: vi.fn().mockReturnValue('test_key')
-    };
+    });
 
     await TestBed.configureTestingModule({
       imports: [
@@ -180,7 +179,7 @@ describe('US-007 Integration Tests: Complete Project Workflow', () => {
     validationService = TestBed.inject(ValidationService);
     authService = TestBed.inject(AuthService);
     securityService = TestBed.inject(SecurityService);
-    cryptoService = TestBed.inject(CryptoService);
+    // cryptoService now comes from cryptoServiceSpy injected above
   });
 
   beforeEach(() => {
@@ -191,7 +190,7 @@ describe('US-007 Integration Tests: Complete Project Workflow', () => {
     validationService = TestBed.inject(ValidationService);
     authService = TestBed.inject(AuthService);
     securityService = TestBed.inject(SecurityService);
-    cryptoService = TestBed.inject(CryptoService);
+    // cryptoService now comes from cryptoServiceSpy injected above
 
     // Reset mocks and re-apply base setup
     vi.clearAllMocks();
@@ -232,10 +231,10 @@ describe('US-007 Integration Tests: Complete Project Workflow', () => {
     securityService.validateRequest = vi.fn().mockReturnValue({ valid: true, threats: [] });
     securityService.checkRateLimit = vi.fn().mockReturnValue({ allowed: true, remaining: 100 });
 
-    cryptoService.getItem = vi.fn().mockReturnValue([]);
-    cryptoService.setItem = vi.fn();
-    cryptoService.clearTaskStorage = vi.fn();
-    cryptoService.getStorageKey = vi.fn().mockReturnValue('test_key');
+    cryptoServiceSpy.getItem.mockReturnValue([]);
+    cryptoServiceSpy.setItem.mockImplementation(() => {});
+    cryptoServiceSpy.clearTaskStorage.mockImplementation(() => {});
+    cryptoServiceSpy.getStorageKey.mockReturnValue('test_key');
   }
 
   describe('Complete Project Workflow', () => {

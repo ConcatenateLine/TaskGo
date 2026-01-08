@@ -5,18 +5,25 @@ import { AuthService } from './auth.service';
 import { CryptoService } from './crypto.service';
 import { ValidationService } from './validation.service';
 import { SecurityService } from './security.service';
+import { createCryptoServiceSpy, CryptoServiceSpy } from '../../../test-helpers/crypto-service.mock';
+import { vi } from 'vitest';
 
 describe('TaskService - Project Filter Tests (US-008)', () => {
   let service: TaskService;
   let authService: AuthService;
+  let cryptoServiceSpy: CryptoServiceSpy;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      providers: [AuthService, CryptoService, ValidationService, SecurityService],
-    });
+    cryptoServiceSpy = createCryptoServiceSpy();
 
-    const cryptoService = TestBed.inject(CryptoService);
-    cryptoService.clear();
+    TestBed.configureTestingModule({
+      providers: [
+        AuthService, 
+        { provide: CryptoService, useValue: cryptoServiceSpy },
+        ValidationService, 
+        SecurityService
+      ],
+    });
 
     service = TestBed.inject(TaskService);
     authService = TestBed.inject(AuthService);

@@ -32,6 +32,14 @@ describe('TaskListComponent', () => {
         if (status === 'DONE') return ['IN_PROGRESS'];
         return [];
       }),
+      syncEncryptedStorage: vi.fn(
+        () => new Promise((resolve) => {
+          resolve(true);
+        }).catch((error) => {
+
+          console.log('Failed to sync encrypted storage:', error);
+        })
+      )
     };
 
     mockTasks = [
@@ -143,7 +151,7 @@ describe('TaskListComponent', () => {
     it('should render action buttons for each task', () => {
       const editButtons = fixture.debugElement.queryAll(By.css('.task-list__action-btn--edit'));
       const deleteButtons = fixture.debugElement.queryAll(By.css('.task-list__action-btn--delete'));
-      
+
       expect(editButtons).toHaveLength(2);
       expect(deleteButtons).toHaveLength(2);
     });
@@ -153,10 +161,10 @@ describe('TaskListComponent', () => {
     it('should have proper ARIA labels for screen readers', () => {
       const priorityBadges = fixture.debugElement.queryAll(By.css('.task-list__badge--priority'));
       expect(priorityBadges[0].nativeElement.getAttribute('aria-label')).toBe('Priority: high');
-      
+
       const statusBadges = fixture.debugElement.queryAll(By.css('.task-list__badge--status'));
       expect(statusBadges[0].nativeElement.getAttribute('aria-label')).toBe('Status: To Do');
-      
+
       const editButtons = fixture.debugElement.queryAll(By.css('.task-list__action-btn--edit'));
       expect(editButtons[0].nativeElement.getAttribute('aria-label')).toBe('Edit task: Newest Task');
     });
@@ -164,7 +172,7 @@ describe('TaskListComponent', () => {
     it('should have semantic HTML structure', () => {
       const taskArticles = fixture.debugElement.queryAll(By.css('.task-list__task'));
       expect(taskArticles[0].nativeElement.getAttribute('role')).toBe('article');
-      
+
       const headers = fixture.debugElement.queryAll(By.css('.task-list__task-header'));
       expect(headers).toHaveLength(2);
     });
@@ -174,27 +182,27 @@ describe('TaskListComponent', () => {
     it('should handle create button click', () => {
       spyOn(component, 'onCreateTask');
       const createBtn = fixture.debugElement.query(By.css('.task-list__create-btn'));
-      
+
       createBtn.triggerEventHandler('click', null);
-      
+
       expect(component.onCreateTask).toHaveBeenCalled();
     });
 
     it('should handle edit button click', () => {
       spyOn(component, 'onTaskAction');
       const editButtons = fixture.debugElement.queryAll(By.css('.task-list__action-btn--edit'));
-      
+
       editButtons[0].triggerEventHandler('click', null);
-      
+
       expect(component.onTaskAction).toHaveBeenCalledWith('1', 'edit');
     });
 
     it('should handle delete button click', () => {
       spyOn(component, 'onTaskAction');
       const deleteButtons = fixture.debugElement.queryAll(By.css('.task-list__action-btn--delete'));
-      
+
       deleteButtons[1].triggerEventHandler('click', null);
-      
+
       expect(component.onTaskAction).toHaveBeenCalledWith('2', 'delete');
     });
   });
@@ -235,12 +243,12 @@ describe('TaskListComponent', () => {
     it('should escape script tags in task titles', () => {
       const taskTitles = fixture.debugElement.queryAll(By.css('.task-list__task-title'));
       const titleContent = taskTitles[0].nativeElement.textContent;
-      
+
       // Should not contain actual script tags
       expect(titleContent).not.toContain('<script>');
       expect(titleContent).not.toContain('</script>');
       expect(titleContent).not.toContain('alert("XSS Title")');
-      
+
       // Should display sanitized content
       expect(titleContent).toContain('Malicious Title');
     });
@@ -249,7 +257,7 @@ describe('TaskListComponent', () => {
       const descriptions = fixture.debugElement.queryAll(By.css('.task-list__task-description'));
       if (descriptions.length > 0) {
         const descContent = descriptions[0].nativeElement.innerHTML;
-        
+
         // Should not contain dangerous HTML
         expect(descContent).not.toContain('<img');
         expect(descContent).not.toContain('onerror');
@@ -260,7 +268,7 @@ describe('TaskListComponent', () => {
     it('should sanitize javascript: protocol in titles', () => {
       const taskTitles = fixture.debugElement.queryAll(By.css('.task-list__task-title'));
       const titleContent = taskTitles[1].nativeElement.textContent;
-      
+
       // Should remove dangerous protocol completely for security
       expect(titleContent).not.toContain('javascript:');
       expect(titleContent).toContain('alert("JS Protocol")');
@@ -269,7 +277,7 @@ describe('TaskListComponent', () => {
     it('should prevent XSS through ARIA attributes', () => {
       const editButtons = fixture.debugElement.queryAll(By.css('.task-list__action-btn--edit'));
       const ariaLabel = editButtons[0].nativeElement.getAttribute('aria-label');
-      
+
       // ARIA labels should be sanitized
       expect(ariaLabel).not.toContain('<script>');
       expect(ariaLabel).not.toContain('alert');
@@ -292,7 +300,7 @@ describe('TaskListComponent', () => {
 
       const taskTitles = fixture.debugElement.queryAll(By.css('.task-list__task-title'));
       const titleContent = taskTitles[0].nativeElement.textContent;
-      
+
       // Should display the escaped text, not execute it
       expect(titleContent).not.toContain('<script>');
       expect(titleContent).not.toContain('alert("Unicode XSS")');
@@ -392,7 +400,7 @@ describe('TaskListComponent', () => {
 
       const taskTitles = fixture.debugElement.queryAll(By.css('.task-list__task-title'));
       expect(taskTitles[0]).toBeTruthy();
-      
+
       // Should truncate or handle long content gracefully
       const displayedTitle = taskTitles[0].nativeElement.textContent;
       expect(displayedTitle.length).toBeLessThanOrEqual(500); // Reasonable display limit
@@ -416,7 +424,7 @@ describe('TaskListComponent', () => {
 
       const taskTitles = fixture.debugElement.queryAll(By.css('.task-list__task-title'));
       const titleContent = taskTitles[0].nativeElement.textContent;
-      
+
       // Should remove or escape control characters
       expect(titleContent).not.toContain('\u0000');
       expect(titleContent).not.toContain('\u0001');
@@ -443,7 +451,7 @@ describe('TaskListComponent', () => {
 
       const editButtons = fixture.debugElement.queryAll(By.css('.task-list__action-btn--edit'));
       const ariaLabel = editButtons[0].nativeElement.getAttribute('aria-label');
-      
+
       // Should sanitize sensitive information in ARIA labels
       expect(ariaLabel).not.toContain('Password=12345');
       expect(ariaLabel).not.toContain('Confidential');
@@ -452,7 +460,7 @@ describe('TaskListComponent', () => {
     it('should sanitize live region content', () => {
       // Test dynamic content updates to screen readers
       const maliciousUpdate = '<script>alert("Screen Reader XSS")</script>';
-      
+
       // Simulate dynamic content update
       // This test will fail until live region sanitization is implemented
       expect(() => {
@@ -486,7 +494,7 @@ describe('TaskListComponent', () => {
 
     it('should sanitize error messages before logging', () => {
       const consoleSpy = vi.spyOn(console, 'error');
-      
+
       taskService.getTasksByStatusAndProject.mockImplementation(() => {
         throw new Error('<script>alert("Error XSS")</script>Database error');
       });

@@ -1,13 +1,14 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { NotificationComponent } from './notification.component';
-import { Notification, NotificationType } from '../../services/notification.service';
+import { Notification, NotificationService, NotificationType } from '../../services/notification.service';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { vi } from 'vitest';
 
 describe('NotificationComponent', () => {
   let component: NotificationComponent;
   let fixture: ComponentFixture<NotificationComponent>;
+  let mockNotificationService: any;
 
   const mockNotification: Notification = {
     id: 'test-1',
@@ -48,13 +49,16 @@ describe('NotificationComponent', () => {
   });
 
   beforeEach(async () => {
+    // Clear any existing DOM elements and reset mocks
+    document.body.innerHTML = '';
+    vi.clearAllMocks();
+
     await TestBed.configureTestingModule({
       imports: [NotificationComponent, NoopAnimationsModule],
+      providers: [
+        { provide: NotificationService, useValue: mockNotificationService }
+      ]
     }).compileComponents();
-  });
-
-  beforeEach(() => {
-    vi.useFakeTimers();
     fixture = TestBed.createComponent(NotificationComponent);
     component = fixture.componentInstance;
     // Don't set input here - let each test set it individually
@@ -112,6 +116,7 @@ describe('NotificationComponent', () => {
 
   describe('action button', () => {
     beforeEach(() => {
+      vi.useFakeTimers();
       fixture.componentRef.setInput('notification', mockNotification);
       fixture.detectChanges();
     });
@@ -218,6 +223,7 @@ describe('NotificationComponent', () => {
 
   describe('close functionality', () => {
     beforeEach(() => {
+      vi.useFakeTimers();
       fixture.componentRef.setInput('notification', mockNotification);
       fixture.detectChanges();
     });
@@ -295,6 +301,7 @@ describe('NotificationComponent', () => {
 
   describe('auto-dismiss functionality', () => {
     beforeEach(() => {
+      vi.useFakeTimers();
       fixture.componentRef.setInput('notification', mockNotification);
       fixture.detectChanges();
     });
@@ -306,6 +313,10 @@ describe('NotificationComponent', () => {
       };
       
       fixture.componentRef.setInput('notification', notificationWithDuration);
+      fixture.detectChanges();
+      
+      // Ensure not hovered so progress bar shows (trigger mouse leave)
+      component.onMouseLeave();
       fixture.detectChanges();
       
       // Test that the progress bar shows the correct duration

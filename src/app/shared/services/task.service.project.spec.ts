@@ -7,13 +7,16 @@ import { CryptoService } from './crypto.service';
 import { ValidationService } from './validation.service';
 import { AuthService } from './auth.service';
 import { SecurityService } from './security.service';
+import { LocalStorageService } from './local-storage.service';
+import { AutoSaveService } from './auto-save.service';
+import { createCryptoServiceSpy, type CryptoServiceSpy } from '../../../test-helpers/crypto-service.mock';
 
 describe('TaskService - US-007: Project Handling', () => {
   let taskService: TaskService;
-  let cryptoService: any;
-  let validationService: any;
+  let cryptoServiceSpy: CryptoServiceSpy;
   let authService: any;
-  let securityService: any;
+  let localStorageService: any;
+  let autoSaveService: any;
 
   const mockTaskData = {
     id: 'test-1',
@@ -27,52 +30,64 @@ describe('TaskService - US-007: Project Handling', () => {
   };
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({
+    cryptoServiceSpy = createCryptoServiceSpy();
+
+    // Create mock services
+    authService = {
+      isAuthenticated: vi.fn().mockReturnValue(true),
+      createAnonymousUser: vi.fn(),
+      requireAuthentication: vi.fn().mockReturnValue(undefined),
+      getUserContext: vi.fn().mockReturnValue({ userId: 'test-user' }),
+      logSecurityEvent: vi.fn()
+    };
+
+    localStorageService = {
+      getItem: vi.fn().mockResolvedValue(null),
+      setItem: vi.fn().mockResolvedValue(undefined)
+    };
+
+    autoSaveService = {
+      queueTaskCreation: vi.fn(),
+      queueTaskUpdate: vi.fn(),
+      queueTaskDeletion: vi.fn(),
+      getMetrics: vi.fn().mockReturnValue({ totalOperations: 0, pendingOperations: 0 }),
+      forceSync: vi.fn().mockResolvedValue(undefined),
+      getPendingOperations: vi.fn().mockReturnValue([]),
+      cancelPendingOperation: vi.fn().mockReturnValue(false),
+      updateConfig: vi.fn(),
+      handleUpdateOperation: vi.fn(),
+      handleOperationResult: vi.fn()
+    };
+
+    TestBed.configureTestingModule({
       providers: [
         TaskService,
-        {
-          provide: CryptoService,
-          useValue: {
-            getItem: vi.fn().mockReturnValue([]),
-            setItem: vi.fn(),
-            clearTaskStorage: vi.fn(),
-            getStorageKey: vi.fn().mockReturnValue('test_key')
-          }
-        },
-        {
-          provide: ValidationService,
-          useValue: {
-            validateTaskTitle: vi.fn().mockImplementation((title: string) => ({ isValid: true, sanitized: title })),
-            validateTaskDescription: vi.fn().mockImplementation((desc: string) => ({ isValid: true, sanitized: desc })),
-            validateCSP: vi.fn().mockReturnValue({ isValid: true, violations: [] }),
-            sanitizeForDisplay: vi.fn((text: string) => text)
-          }
-        },
-        {
-          provide: AuthService,
-          useValue: {
-            isAuthenticated: vi.fn().mockReturnValue(true),
-            requireAuthentication: vi.fn().mockReturnValue(undefined),
-            logSecurityEvent: vi.fn(),
-            getUserContext: vi.fn().mockReturnValue({ userId: 'test-user' }),
-            createAnonymousUser: vi.fn()
-          }
-        },
-        {
-          provide: SecurityService,
-          useValue: {
-            validateRequest: vi.fn().mockReturnValue({ valid: true, threats: [] }),
-            checkRateLimit: vi.fn().mockReturnValue({ allowed: true, remaining: 100 })
-          }
-        }
+        { provide: AuthService, useValue: authService },
+        { provide: CryptoService, useValue: cryptoServiceSpy },
+        { provide: ValidationService, useValue: { 
+          validateTaskTitle: vi.fn().mockImplementation((title: string) => ({ isValid: true, sanitized: title })),
+          validateTaskDescription: vi.fn().mockImplementation((description: string) => ({ isValid: true, sanitized: description })),
+          sanitizeForDisplay: vi.fn(),
+          validateCSP: vi.fn().mockReturnValue({ isValid: true, violations: [] }),
+          detectXSS: vi.fn().mockReturnValue({ isSafe: true, threats: [] })
+        } },
+        { provide: SecurityService, useValue: {
+          validateRequest: vi.fn().mockReturnValue({ valid: true, threats: [] }),
+          checkRateLimit: vi.fn().mockReturnValue({ allowed: true, remaining: 100 }),
+          getRateLimitStatus: vi.fn().mockReturnValue({ 
+            operation: 'createTask',
+            allowed: true,
+            remaining: 100,
+            resetTime: new Date(Date.now() + 60000)
+          }),
+          logSecurityEvent: vi.fn()
+        } },
+        { provide: LocalStorageService, useValue: localStorageService },
+        { provide: AutoSaveService, useValue: autoSaveService }
       ]
-    }).compileComponents();
+    });
 
     taskService = TestBed.inject(TaskService);
-    cryptoService = TestBed.inject(CryptoService);
-    validationService = TestBed.inject(ValidationService);
-    authService = TestBed.inject(AuthService);
-    securityService = TestBed.inject(SecurityService);
   });
 
   afterEach(() => {
@@ -302,11 +317,11 @@ describe('TaskService - US-007: Project Handling', () => {
         project: 'Work'
       });
 
-      expect(cryptoService.setItem).toHaveBeenCalledWith(
-        'test_key',
-        expect.arrayContaining([
-          expect.objectContaining({ project: 'Work' })
-        ])
+      expect(localStorageService.setItem).toHaveBeenCalledWith(
+        'taskgo_tasks',
+        expect.any(String),
+        'create',
+        'Persistent Project Task'
       );
     });
 
@@ -383,7 +398,8 @@ describe('TaskService - US-007: Project Handling', () => {
     });
 
     it('should validate project before updating', () => {
-      validationService.validateTaskTitle.mockReturnValue({ isValid: true, sanitized: 'Sanitized Title' });
+      const validationService = TestBed.inject(ValidationService);
+      (validationService.validateTaskTitle as any).mockReturnValue({ isValid: true, sanitized: 'Sanitized Title' });
 
       taskService.updateTask(mockTaskData.id, {
         title: 'New Title',
@@ -532,6 +548,8 @@ describe('TaskService - US-007: Project Handling', () => {
 
   describe('Security - Project Field', () => {
     it('should validate project value through security service', () => {
+      const securityService = TestBed.inject(SecurityService);
+      
       taskService.createTask({
         title: 'Test Task',
         description: 'Description',

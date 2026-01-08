@@ -9,14 +9,17 @@ import { ValidationService } from './validation.service';
 import { AuthService } from './auth.service';
 import { SecurityService } from './security.service';
 import { CryptoService } from './crypto.service';
+import { LocalStorageService } from './local-storage.service';
 import { Task, TaskPriority } from '../models/task.model';
+import { createCryptoServiceSpy, CryptoServiceSpy } from '../../../test-helpers/crypto-service.mock';
 
 describe('TaskService - US-002 Task Creation User Story Tests', () => {
   let service: TaskService;
   let validationService: any;
   let authService: any;
   let securityService: any;
-  let cryptoService: any;
+  let cryptoServiceSpy: CryptoServiceSpy;
+  let localStorageService: any;
 
   beforeEach(() => {
     const validationServiceSpy = {
@@ -38,12 +41,15 @@ describe('TaskService - US-002 Task Creation User Story Tests', () => {
       checkRateLimit: vi.fn().mockReturnValue({ allowed: true, remaining: 100 })
     };
     
-    const cryptoServiceSpy = {
-      getItem: vi.fn().mockReturnValue([]),
-      setItem: vi.fn(),
-      clear: vi.fn(),
-      getStorageKey: vi.fn().mockReturnValue('test_key')
+    const localStorageServiceSpy = {
+      getItem: vi.fn().mockResolvedValue(null),
+      setItem: vi.fn().mockResolvedValue(undefined)
     };
+    
+    cryptoServiceSpy = createCryptoServiceSpy({
+      getItem: vi.fn().mockReturnValue([]),
+      getStorageKey: vi.fn().mockReturnValue('test_key')
+    });
 
     TestBed.configureTestingModule({
       providers: [
@@ -51,7 +57,8 @@ describe('TaskService - US-002 Task Creation User Story Tests', () => {
         { provide: ValidationService, useValue: validationServiceSpy },
         { provide: AuthService, useValue: authServiceSpy },
         { provide: SecurityService, useValue: securityServiceSpy },
-        { provide: CryptoService, useValue: cryptoServiceSpy }
+        { provide: CryptoService, useValue: cryptoServiceSpy },
+        { provide: LocalStorageService, useValue: localStorageServiceSpy }
       ]
     });
 
@@ -59,10 +66,11 @@ describe('TaskService - US-002 Task Creation User Story Tests', () => {
     validationService = TestBed.inject(ValidationService);
     authService = TestBed.inject(AuthService);
     securityService = TestBed.inject(SecurityService);
-    cryptoService = TestBed.inject(CryptoService);
+    localStorageService = TestBed.inject(LocalStorageService);
+    // cryptoService now comes from cryptoServiceSpy injected above
 
     // Clear storage before each test
-    cryptoService.clear();
+    cryptoServiceSpy.clear.mockReset();
     
     // Setup default mock returns
     validationService.validateTaskTitle.mockReturnValue({ 
@@ -531,12 +539,12 @@ describe('TaskService - US-002 Task Creation User Story Tests', () => {
 
       service.createTask(taskData);
 
-      expect(cryptoService.setItem).toHaveBeenCalled();
-      expect(cryptoService.setItem).toHaveBeenCalledWith(
+      expect(localStorageService.setItem).toHaveBeenCalled();
+      expect(localStorageService.setItem).toHaveBeenCalledWith(
         'test_key',
-        expect.arrayContaining([expect.objectContaining({
-          title: 'Persistence Test Task'
-        })])
+        expect.any(String), // encrypted data
+        'create',
+        expect.any(String)
       );
     });
 

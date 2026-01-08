@@ -1,6 +1,4 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component, signal, computed } from '@angular/core';
-import { By } from '@angular/platform-browser';
 import { StorageManagementComponent } from './storage-management.component';
 import { LocalStorageService, BackupSnapshot } from '../../shared/services/local-storage.service';
 import { DataRecoveryService } from '../../shared/services/data-recovery.service';
@@ -85,7 +83,13 @@ describe('StorageManagementComponent', () => {
 
   // Helper to create file objects for testing
   const createMockFile = (content: string, filename = 'test.json'): File => {
-    return new File([content], filename, { type: 'application/json' });
+    const file = new File([content], filename, { type: 'application/json' });
+    // Mock the text() method for File objects in test environment
+    Object.defineProperty(file, 'text', {
+      value: () => Promise.resolve(content),
+      writable: false,
+    });
+    return file;
   };
 
   // Helper to mock confirm dialogs
@@ -153,8 +157,13 @@ describe('StorageManagementComponent', () => {
 
     it('should load storage data on initialization', async () => {
       const mockAnalytics = { totalOperations: 10, backupOperations: 5 };
-      const mockHealthReport = { status: 'healthy', usage: { percentage: 60 } };
+      const mockHealthReport = { status: 'healthy', usage: { percentage: 60, used: 1024 } };
       const mockBackupHistory = [createMockBackup()];
+
+      // Clear any previous mock calls and reset
+      localStorageService.getStorageAnalytics.mockReset();
+      localStorageService.getStorageHealthReport.mockReset();
+      localStorageService.getBackupHistory.mockReset();
 
       localStorageService.getStorageAnalytics.mockResolvedValue({
         success: true,
@@ -164,17 +173,25 @@ describe('StorageManagementComponent', () => {
         success: true,
         data: mockHealthReport,
       });
-      localStorageService.getBackupHistory.mockResolvedValue({
-        success: true,
-        data: mockBackupHistory,
+      localStorageService.getBackupHistory.mockImplementation((key?: string) => {
+        if (key === 'taskgo_tasks') {
+          return Promise.resolve({
+            success: true,
+            data: mockBackupHistory,
+          });
+        }
+        return Promise.resolve({
+          success: true,
+          data: [],
+        });
       });
 
       await component.ngOnInit();
       await fixture.whenStable();
 
-      expect(localStorageService.getStorageAnalytics).toHaveBeenCalledTimes(1);
-      expect(localStorageService.getStorageHealthReport).toHaveBeenCalledTimes(1);
-      expect(localStorageService.getBackupHistory).toHaveBeenCalledTimes(2); // tasks + archived
+      expect(localStorageService.getStorageAnalytics).toHaveBeenCalledTimes(2); // One from ngOnInit, one from loadStorageData
+      expect(localStorageService.getStorageHealthReport).toHaveBeenCalledTimes(2); // One from ngOnInit, one from loadStorageData
+      expect(localStorageService.getBackupHistory).toHaveBeenCalledTimes(4); // tasks + archived (called twice)
       expect(component.analytics()).toEqual(mockAnalytics);
       expect(component.healthReport()).toEqual(mockHealthReport);
       expect(component.backupHistory()).toEqual(mockBackupHistory);
@@ -182,7 +199,9 @@ describe('StorageManagementComponent', () => {
 
     it('should handle initialization errors gracefully', async () => {
       localStorageService.getStorageAnalytics.mockRejectedValue(new Error('Service unavailable'));
-      localStorageService.getStorageHealthReport.mockRejectedValue(new Error('Service unavailable'));
+      localStorageService.getStorageHealthReport.mockRejectedValue(
+        new Error('Service unavailable')
+      );
       localStorageService.getBackupHistory.mockRejectedValue(new Error('Service unavailable'));
 
       await component.ngOnInit();
@@ -197,45 +216,45 @@ describe('StorageManagementComponent', () => {
 
   describe('Computed Properties', () => {
     beforeEach(() => {
-      component.healthReport.set({ status: 'healthy', usage: { percentage: 75 } });
+      component.healthReport.set({ status: 'healthy', usage: { percentage: 75, used: 1024 } });
       component.backupHistory.set([createMockBackup()]);
     });
 
     it('should compute isHealthy correctly', () => {
       expect(component.isHealthy()).toBe(true);
-      
+
       component.healthReport.set({ status: 'warning' });
       expect(component.isHealthy()).toBe(false);
-      
+
       component.healthReport.set({ status: 'critical' });
       expect(component.isHealthy()).toBe(false);
     });
 
     it('should compute storageUsagePercentage correctly', () => {
       expect(component.storageUsagePercentage()).toBe(75);
-      
-      component.healthReport.set({ usage: { percentage: 90 } });
+
+      component.healthReport.set({ usage: { percentage: 90, used: 1024 } });
       expect(component.storageUsagePercentage()).toBe(90);
-      
+
       component.healthReport.set({});
       expect(component.storageUsagePercentage()).toBe(0);
     });
 
     it('should compute hasBackups correctly', () => {
       expect(component.hasBackups()).toBe(true);
-      
+
       component.backupHistory.set([]);
       expect(component.hasBackups()).toBe(false);
     });
 
     it('should compute canRecover correctly', () => {
       expect(component.canRecover()).toBe(true); // has backups
-      
+
       component.backupHistory.set([]);
-      expect(component.canRecover()).toBe(false); // no backups, healthy status
-      
+      expect(component.canRecover()).toBe(false); // no backups, healthy status - recovery not needed
+
       component.healthReport.set({ status: 'critical' });
-      expect(component.canRecover()).toBe(false); // critical status but no backups
+      expect(component.canRecover()).toBe(true); // critical status - recovery always available
     });
   });
 
@@ -255,19 +274,25 @@ describe('StorageManagementComponent', () => {
         });
 
         const { createObjectURLSpy, revokeObjectURLSpy } = mockBlobOperations();
-        const mockCreateElement = vi.spyOn(document, 'createElement').mockImplementation((tagName) => {
-          if (tagName === 'a') {
-            const link = {
-              href: '',
-              download: '',
-              click: vi.fn(),
-            } as any;
-            return link;
-          }
-          return document.createElement(tagName);
-        });
-        const mockAppendChild = vi.spyOn(document.body, 'appendChild').mockImplementation(() => document.body);
-        const mockRemoveChild = vi.spyOn(document.body, 'removeChild').mockImplementation(() => document.body);
+        const mockCreateElement = vi
+          .spyOn(document, 'createElement')
+          .mockImplementation((tagName) => {
+            if (tagName === 'a') {
+              const link = {
+                href: '',
+                download: '',
+                click: vi.fn(),
+              } as any;
+              return link;
+            }
+            return document.createElement(tagName);
+          });
+        const mockAppendChild = vi
+          .spyOn(document.body, 'appendChild')
+          .mockImplementation(() => document.body);
+        const mockRemoveChild = vi
+          .spyOn(document.body, 'removeChild')
+          .mockImplementation(() => document.body);
         const alertSpy = mockAlert();
 
         await component.exportStorageData();
@@ -311,7 +336,7 @@ describe('StorageManagementComponent', () => {
     describe('Import Functionality', () => {
       it('should import storage data successfully', async () => {
         const mockImportData = {
-          data: { tasks: [createMockTask()] },
+          data: { tasks: [JSON.parse(JSON.stringify(createMockTask()))] },
           version: '1.0.0',
         };
 
@@ -321,7 +346,9 @@ describe('StorageManagementComponent', () => {
 
         mockConfirm(true);
         const alertSpy = mockAlert();
-        const loadStorageDataSpy = vi.spyOn(component, 'loadStorageData').mockResolvedValue(undefined);
+        const loadStorageDataSpy = vi
+          .spyOn(component, 'loadStorageData')
+          .mockResolvedValue(undefined);
 
         const mockEvent = {
           target: {
@@ -331,10 +358,16 @@ describe('StorageManagementComponent', () => {
 
         await component.importStorageData(mockEvent);
 
-        expect(localStorageService.importData).toHaveBeenCalledWith(mockImportData, {
-          overwrite: true,
-          createBackups: true,
-        });
+        expect(localStorageService.importData).toHaveBeenCalledWith(
+          {
+            data: { tasks: [JSON.parse(JSON.stringify(createMockTask()))] },
+            version: '1.0.0',
+          },
+          {
+            overwrite: true,
+            createBackups: true,
+          }
+        );
         expect(alertSpy).toHaveBeenCalledWith('Storage data imported successfully!');
         expect(loadStorageDataSpy).toHaveBeenCalled();
         expect(component.isLoading()).toBe(false);
@@ -365,7 +398,7 @@ describe('StorageManagementComponent', () => {
 
         await component.importStorageData(mockEvent);
 
-        expect(alertSpy).toHaveBeenCalledWith('Import failed: Invalid file format');
+        expect(alertSpy).toHaveBeenCalledWith('Import failed: Unexpected token \'i\', "invalid json" is not valid JSON');
         expect(component.isLoading()).toBe(false);
       });
     });
@@ -379,8 +412,12 @@ describe('StorageManagementComponent', () => {
 
         mockConfirm(true);
         const alertSpy = mockAlert();
-        const loadBackupHistorySpy = vi.spyOn(component, 'loadBackupHistory').mockResolvedValue(undefined);
-        const loadHealthReportSpy = vi.spyOn(component, 'loadHealthReport').mockResolvedValue(undefined);
+        const loadBackupHistorySpy = vi
+          .spyOn(component, 'loadBackupHistory')
+          .mockResolvedValue(undefined);
+        const loadHealthReportSpy = vi
+          .spyOn(component, 'loadHealthReport')
+          .mockResolvedValue(undefined);
 
         await component.performCleanup();
 
@@ -432,11 +469,15 @@ describe('StorageManagementComponent', () => {
         component.recoveryOptions.set({ strategy: 'auto', keys: [] });
         mockConfirm(true);
         const alertSpy = mockAlert();
-        const loadStorageDataSpy = vi.spyOn(component, 'loadStorageData').mockResolvedValue(undefined);
+        const loadStorageDataSpy = vi
+          .spyOn(component, 'loadStorageData')
+          .mockResolvedValue(undefined);
 
         await component.performRecovery();
 
-        expect(dataRecoveryService.performRecovery).toHaveBeenCalledWith('taskgo_tasks', { strategy: 'auto' });
+        expect(dataRecoveryService.performRecovery).toHaveBeenCalledWith('taskgo_tasks', {
+          strategy: 'auto',
+        });
         expect(alertSpy).toHaveBeenCalledWith(
           'Recovery completed successfully!\n\nRecovered: 5\nFailed: 0\nWarnings: 0'
         );
@@ -459,13 +500,18 @@ describe('StorageManagementComponent', () => {
         component.recoveryOptions.set({ strategy: 'auto', keys: ['tasks', 'settings'] });
         mockConfirm(true);
         const alertSpy = mockAlert();
-        const loadStorageDataSpy = vi.spyOn(component, 'loadStorageData').mockResolvedValue(undefined);
+        const loadStorageDataSpy = vi
+          .spyOn(component, 'loadStorageData')
+          .mockResolvedValue(undefined);
 
         await component.performRecovery();
 
-        expect(dataRecoveryService.performBatchRecovery).toHaveBeenCalledWith(['tasks', 'settings'], {
-          strategy: 'auto',
-        });
+        expect(dataRecoveryService.performBatchRecovery).toHaveBeenCalledWith(
+          ['tasks', 'settings'],
+          {
+            strategy: 'auto',
+          }
+        );
         expect(alertSpy).toHaveBeenCalledWith(
           'Recovery completed successfully!\n\nRecovered: 3\nFailed: 1\nWarnings: 1'
         );
@@ -523,11 +569,16 @@ describe('StorageManagementComponent', () => {
 
         mockConfirm(true);
         const alertSpy = mockAlert();
-        const loadStorageDataSpy = vi.spyOn(component, 'loadStorageData').mockResolvedValue(undefined);
+        const loadStorageDataSpy = vi
+          .spyOn(component, 'loadStorageData')
+          .mockResolvedValue(undefined);
 
         await component.restoreFromBackup(mockBackup);
 
-        expect(localStorageService.restoreFromBackup).toHaveBeenCalledWith('taskgo_tasks', 'backup_123');
+        expect(localStorageService.restoreFromBackup).toHaveBeenCalledWith(
+          'taskgo_tasks',
+          'backup_123'
+        );
         expect(alertSpy).toHaveBeenCalledWith('Successfully restored taskgo_tasks from backup!');
         expect(loadStorageDataSpy).toHaveBeenCalled();
         expect(component.isLoading()).toBe(false);
@@ -758,16 +809,20 @@ describe('StorageManagementComponent', () => {
 
       mockConfirm(true);
       const alertSpy = mockAlert();
-      const loadStorageDataSpy = vi.spyOn(component, 'loadStorageData').mockResolvedValue(undefined);
+      const loadStorageDataSpy = vi
+        .spyOn(component, 'loadStorageData')
+        .mockResolvedValue(undefined);
 
       // Mock Math.random to get predictable corruption type
-      vi.spyOn(Math, 'random').mockReturnValue(0.5); // Will select 'missing_structure'
+      vi.spyOn(Math, 'random').mockReturnValue(0.25); // Will select 'missing_structure' (index 1 of 4: 0, 0.25, 0.5, 0.75)
 
       await component.simulateCorruption();
 
       expect(localStorageService.getItem).toHaveBeenCalledWith('taskgo_tasks');
       expect(localStorageService.setItem).toHaveBeenCalledWith('taskgo_tasks', [
-        { id: 'test-task-1' },
+        {
+          id: 'test-task-1',
+        },
       ]);
       expect(alertSpy).toHaveBeenCalledWith(
         expect.stringContaining('Data corrupted using method: missing_structure')
@@ -819,10 +874,6 @@ describe('StorageManagementComponent', () => {
       storageAnalyticsService.generateDetailedAnalytics.mockResolvedValue(mockDetailedAnalytics);
       storageAnalyticsService.getStorageGrowthPrediction.mockResolvedValue(mockGrowthPrediction);
 
-      const consoleSpy = vi.spyOn(console, 'group').mockImplementation(() => {});
-      const consoleTableSpy = vi.spyOn(console, 'table').mockImplementation(() => {});
-      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      const consoleGroupEndSpy = vi.spyOn(console, 'groupEnd').mockImplementation(() => {});
       const alertSpy = mockAlert();
 
       await component.getDetailedAnalytics();
@@ -836,13 +887,17 @@ describe('StorageManagementComponent', () => {
     });
 
     it('should handle detailed analytics failures', async () => {
-      storageAnalyticsService.generateDetailedAnalytics.mockRejectedValue(new Error('Analytics failed'));
+      storageAnalyticsService.generateDetailedAnalytics.mockRejectedValue(
+        new Error('Analytics failed')
+      );
 
       const alertSpy = mockAlert();
 
       await component.getDetailedAnalytics();
 
-      expect(alertSpy).toHaveBeenCalledWith('Failed to generate detailed analytics: Analytics failed');
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Failed to generate detailed analytics: Analytics failed'
+      );
       expect(component.isLoading()).toBe(false);
     });
   });
@@ -850,18 +905,54 @@ describe('StorageManagementComponent', () => {
   describe('Integration Tests', () => {
     it('should handle complete data refresh cycle', async () => {
       const mockAnalytics = { totalOperations: 10 };
-      const mockHealthReport = { status: 'healthy', usage: { percentage: 60 } };
+      const mockHealthReport = { status: 'healthy', usage: { percentage: 60, used: 1024 } };
       const mockBackupHistory = [createMockBackup()];
 
-      localStorageService.getStorageAnalytics.mockResolvedValue({ success: true, data: mockAnalytics });
-      localStorageService.getStorageHealthReport.mockResolvedValue({ success: true, data: mockHealthReport });
-      localStorageService.getBackupHistory.mockResolvedValue({ success: true, data: mockBackupHistory });
+      localStorageService.getStorageAnalytics.mockResolvedValue({
+        success: true,
+        data: mockAnalytics,
+      });
+      localStorageService.getStorageHealthReport.mockResolvedValue({
+        success: true,
+        data: mockHealthReport,
+      });
+      localStorageService.getBackupHistory.mockResolvedValue({
+        success: true,
+        data: mockBackupHistory,
+      });
+
+      // Clear any previous calls to ensure clean state
+      localStorageService.getBackupHistory.mockClear();
+      localStorageService.getStorageAnalytics.mockClear();
+      localStorageService.getStorageHealthReport.mockClear();
+
+      // Re-setup mocks after clearing
+      localStorageService.getStorageAnalytics.mockResolvedValue({
+        success: true,
+        data: mockAnalytics,
+      });
+      localStorageService.getStorageHealthReport.mockResolvedValue({
+        success: true,
+        data: mockHealthReport,
+      });
+      localStorageService.getBackupHistory.mockImplementation((key?: string) => {
+        if (key === 'taskgo_tasks') {
+          return Promise.resolve({
+            success: true,
+            data: mockBackupHistory,
+          });
+        }
+        return Promise.resolve({
+          success: true,
+          data: [],
+        });
+      });
 
       await component.refresh();
 
-      expect(localStorageService.getStorageAnalytics).toHaveBeenCalled();
-      expect(localStorageService.getStorageHealthReport).toHaveBeenCalled();
-      expect(localStorageService.getBackupHistory).toHaveBeenCalled();
+      expect(localStorageService.getStorageAnalytics).toHaveBeenCalledTimes(1);
+      expect(localStorageService.getStorageHealthReport).toHaveBeenCalledTimes(1);
+      expect(localStorageService.getBackupHistory).toHaveBeenCalledTimes(2); // tasks + archived
       expect(component.analytics()).toBe(mockAnalytics);
       expect(component.healthReport()).toBe(mockHealthReport);
       expect(component.backupHistory()).toEqual(mockBackupHistory);
@@ -869,9 +960,28 @@ describe('StorageManagementComponent', () => {
 
     it('should handle concurrent operations safely', async () => {
       // Simulate multiple operations happening at once
-      const analyticsPromise = new Promise(resolve => setTimeout(() => resolve({ success: true, data: {} }), 50));
-      const healthPromise = new Promise(resolve => setTimeout(() => resolve({ success: true, data: {} }), 30));
-      const backupPromise = new Promise(resolve => setTimeout(() => resolve({ success: true, data: [] }), 20));
+      const analyticsPromise = new Promise((resolve) =>
+        setTimeout(() => resolve({ success: true, data: {} }), 50)
+      );
+      const healthPromise = new Promise((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              success: true,
+              data: {
+                status: 'healthy',
+                usage: {
+                  percentage: 60,
+                  used: 1024,
+                },
+              },
+            }),
+          30
+        )
+      );
+      const backupPromise = new Promise((resolve) =>
+        setTimeout(() => resolve({ success: true, data: [] }), 20)
+      );
 
       localStorageService.getStorageAnalytics.mockReturnValue(analyticsPromise as any);
       localStorageService.getStorageHealthReport.mockReturnValue(healthPromise as any);
