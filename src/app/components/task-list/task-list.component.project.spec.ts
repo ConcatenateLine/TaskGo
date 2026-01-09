@@ -1,9 +1,16 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CommonModule } from '@angular/common';
 import { By } from '@angular/platform-browser';
+import { DomSanitizer } from '@angular/platform-browser';
 import { TaskListComponent } from './task-list.component';
 import { TaskService } from '../../shared/services/task.service';
+import { ValidationService } from '../../shared/services/validation.service';
+import { AuthService } from '../../shared/services/auth.service';
+import { SecurityService } from '../../shared/services/security.service';
 import { Task, PROJECT_COLORS } from '../../shared/models/task.model';
+import { TaskInlineEditComponent } from '../task-inline-edit/task-inline-edit.component';
+import { TaskStatusComponent } from '../task-status/task-status.component';
+import { FocusTrapDirective } from '../../shared/directives/focus-trap.directive';
 
 describe('TaskListComponent - US-007: Project Badge Display', () => {
   let component: TaskListComponent;
@@ -55,6 +62,7 @@ describe('TaskListComponent - US-007: Project Badge Display', () => {
     ];
 
     const taskServiceSpy = {
+      loadFromEncryptedStorage: vi.fn().mockResolvedValue(undefined),
       getTasksByStatusAndProject: vi.fn().mockReturnValue(mockTasks),
       getTaskCounts: vi.fn().mockReturnValue({
         todo: 2,
@@ -65,18 +73,53 @@ describe('TaskListComponent - US-007: Project Badge Display', () => {
       initializeMockData: vi.fn(),
       getTask: vi.fn(),
       changeStatus: vi.fn(),
+      deleteTask: vi.fn().mockReturnValue(true),
       getStatusTransitions: vi.fn().mockImplementation((status: any) => {
         if (status === 'TODO') return ['IN_PROGRESS'];
         if (status === 'IN_PROGRESS') return ['TODO', 'DONE'];
         if (status === 'DONE') return ['IN_PROGRESS'];
         return [];
       }),
+      syncEncryptedStorage: vi.fn().mockResolvedValue(undefined),
     };
 
+    const validationServiceSpy = {
+      sanitizeForDisplay: vi.fn().mockImplementation((input: string) => input),
+    };
+
+    const authServiceSpy = {
+      logSecurityEvent: vi.fn(),
+      getUserContext: vi.fn().mockReturnValue({ userId: 'test-user' }),
+      requireAuthentication: vi.fn(),
+    };
+
+    const securityServiceSpy = {
+      checkRateLimit: vi.fn().mockReturnValue({ allowed: true }),
+    };
+
+    const domSanitizerSpy = {
+      sanitize: vi.fn().mockImplementation((context: any, value: string) => value),
+    };
+
+    // Mock ngDevMode to avoid undefined reference errors
+    if (typeof window !== 'undefined') {
+      (window as any).ngDevMode = true;
+    }
+
     await TestBed.configureTestingModule({
-      imports: [CommonModule, TaskListComponent],
+      imports: [
+        CommonModule, 
+        TaskListComponent,
+        TaskInlineEditComponent,
+        TaskStatusComponent,
+        FocusTrapDirective
+      ],
       providers: [
-        { provide: TaskService, useValue: taskServiceSpy }
+        { provide: TaskService, useValue: taskServiceSpy },
+        { provide: ValidationService, useValue: validationServiceSpy },
+        { provide: AuthService, useValue: authServiceSpy },
+        { provide: SecurityService, useValue: securityServiceSpy },
+        { provide: DomSanitizer, useValue: domSanitizerSpy },
       ]
     }).compileComponents();
 
@@ -201,25 +244,21 @@ describe('TaskListComponent - US-007: Project Badge Display', () => {
   describe('getProjectBadgeClasses Method', () => {
     it('should return correct CSS classes for Personal project', () => {
       const classes = component.getProjectBadgeClasses('Personal');
-
       expect(classes).toBe('task-list__badge task-list__badge--project task-list__badge--project-personal');
     });
 
     it('should return correct CSS classes for Work project', () => {
       const classes = component.getProjectBadgeClasses('Work');
-
       expect(classes).toBe('task-list__badge task-list__badge--project task-list__badge--project-work');
     });
 
     it('should return correct CSS classes for Study project', () => {
       const classes = component.getProjectBadgeClasses('Study');
-
       expect(classes).toBe('task-list__badge task-list__badge--project task-list__badge--project-study');
     });
 
     it('should return correct CSS classes for General project', () => {
       const classes = component.getProjectBadgeClasses('General');
-
       expect(classes).toBe('task-list__badge task-list__badge--project task-list__badge--project-general');
     });
   });

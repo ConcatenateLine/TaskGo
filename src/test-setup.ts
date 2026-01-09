@@ -1,132 +1,65 @@
-import { beforeEach, vi, beforeAll } from 'vitest';
+import { beforeEach, vi, beforeAll, afterEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 
-// Mock DOM APIs before Angular test environment initialization
-Object.defineProperty(Element.prototype, 'setAttribute', {
-  value: vi.fn(),
-  writable: true,
-  configurable: true,
+// Initialize Angular test environment once
+beforeAll(() => {
+  TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 });
 
-Object.defineProperty(Element.prototype, 'removeAttribute', {
-  value: vi.fn(),
-  writable: true,
-  configurable: true,
+// Clean up DOM after each test
+afterEach(() => {
+  // Clean up any elements created during tests
+  document.body.innerHTML = '';
+  // Clear any root elements that might interfere with next test
+  const existingRoots = document.querySelectorAll('[id^="root"]');
+  existingRoots.forEach(el => el.remove());
 });
 
-// Also mock for Node elements (which might be what Angular is using)
-Object.defineProperty(Node.prototype, 'setAttribute', {
-  value: vi.fn(),
-  writable: true,
-  configurable: true,
-});
-
-Object.defineProperty(Node.prototype, 'removeAttribute', {
-  value: vi.fn(),
-  writable: true,
-  configurable: true,
-});
-
-// Mock HTMLElement specifically
-Object.defineProperty(HTMLElement.prototype, 'setAttribute', {
-  value: vi.fn(),
-  writable: true,
-  configurable: true,
-});
-
-Object.defineProperty(HTMLElement.prototype, 'removeAttribute', {
-  value: vi.fn(),
-  writable: true,
-  configurable: true,
-});
-
-// Initialize Angular test environment after DOM mocking
-TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-
-// Resolve component resources for Angular 21+ with Vitest
-beforeAll(async () => {
-  try {
-    const { ɵresolveComponentResources: resolveComponentResources } = await import('@angular/core');
-    if (resolveComponentResources) {
-      // Simple no-op resolver for tests
-      await resolveComponentResources(() => Promise.resolve(''));
-    }
-  } catch {
-    // Fallback if resolveComponentResources is not available
-    return;
+// Set up DOM before each test
+beforeEach(() => {
+  // Create multiple potential root elements that Angular might look for
+  for (let i = 0; i <= 10; i++) {
+    const rootElement = document.createElement('div');
+    rootElement.id = `root${i}`;
+    rootElement.setAttribute('data-testid', `test-root-${i}`);
+    document.body.appendChild(rootElement);
   }
+  
+  // Also create a generic root element
+  const genericRoot = document.createElement('div');
+  genericRoot.id = 'root';
+  document.body.appendChild(genericRoot);
+  
+  // Create angular app root as well
+  const angularRoot = document.createElement('app-root');
+  document.body.appendChild(angularRoot);
 });
 
-// Mock DOM APIs that might not be available in jsdom
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: vi.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(), // deprecated
-    removeListener: vi.fn(), // deprecated
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
+// Mock getBoundingClientRect for positioning tests
+Object.defineProperty(Element.prototype, 'getBoundingClientRect', {
+  value: vi.fn(() => ({
+    top: 0,
+    left: 0,
+    bottom: 100,
+    right: 100,
+    width: 100,
+    height: 100,
+    x: 0,
+    y: 0,
+    toJSON: vi.fn()
   })),
-});
-
-// Mock ResizeObserver
-(globalThis as any).ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
-
-// Mock IntersectionObserver
-(globalThis as any).IntersectionObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
-
-// Mock scrollTo
-Element.prototype.scrollTo = vi.fn();
-window.scrollTo = vi.fn();
-
-// Mock getComputedStyle
-(window as any).getComputedStyle = vi.fn().mockReturnValue({
-  getPropertyValue: vi.fn().mockReturnValue(''),
-  zIndex: '0',
-});
-
-// Mock console methods to avoid noise in tests
-(globalThis as any).console = {
-  ...console,
-  warn: vi.fn(),
-  error: vi.fn(),
-  log: vi.fn(),
-};
-
-// Mock additional DOM APIs that might be missing
-Object.defineProperty(Element.prototype, 'setAttribute', {
-  value: vi.fn(),
   writable: true,
+  configurable: true,
 });
 
-Object.defineProperty(Element.prototype, 'removeAttribute', {
-  value: vi.fn(),
+// Mock window.getComputedStyle
+Object.defineProperty(window, 'getComputedStyle', {
+  value: vi.fn(() => ({
+    getPropertyValue: vi.fn(() => ''),
+    setProperty: vi.fn(),
+    removeProperty: vi.fn()
+  })),
   writable: true,
+  configurable: true,
 });
-
-// Mock document.createElement to return proper elements
-const originalCreateElement = document.createElement;
-document.createElement = vi.fn().mockImplementation((tagName: string) => {
-  const element = originalCreateElement.call(document, tagName);
-  // Ensure the element has setAttribute
-  if (!element.setAttribute) {
-    element.setAttribute = vi.fn();
-  }
-  if (!element.removeAttribute) {
-    element.removeAttribute = vi.fn();
-  }
-  return element;
-});
-

@@ -40,6 +40,7 @@ describe('TaskListComponent - Debug Delete Buttons', () => {
         if (status === 'DONE') return ['IN_PROGRESS'];
         return [];
       }),
+      syncEncryptedStorage: vi.fn().mockResolvedValue(undefined)
     };
 
     const validationServiceSpy = {
