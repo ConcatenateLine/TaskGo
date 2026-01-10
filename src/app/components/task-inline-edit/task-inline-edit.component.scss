@@ -10,6 +10,12 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     padding: 1.5rem;
     border: 2px solid #3b82f6;
+    transition: all 0.3s ease;
+
+    &--saving {
+      border-color: #22c55e;
+      background-color: rgba(34, 197, 94, 0.05);
+    }
   }
 
   &__error {
@@ -162,6 +168,18 @@
       &:disabled {
         background-color: #9ca3af;
       }
+
+      &--saving {
+        background-color: #6366f1;
+      }
+
+      &--success {
+        background-color: #22c55e;
+        
+        &:hover:not(:disabled) {
+          background-color: #16a34a;
+        }
+      }
     }
 
     &--cancel {
@@ -188,6 +206,10 @@
     animation: spin 1s linear infinite;
   }
 
+  &__success-icon {
+    animation: checkmarkPop 0.3s ease-out;
+  }
+
   &__live-region {
     position: absolute;
     left: -10000px;
@@ -200,4 +222,28 @@
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+@keyframes checkmarkPop {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+// Respect prefers-reduced-motion for animations
+@media (prefers-reduced-motion: reduce) {
+  .task-inline-edit {
+    &__form-container,
+    &__btn,
+    &__spinner,
+    &__success-icon {
+      animation: none;
+      transition: none;
+    }
+  }
 }

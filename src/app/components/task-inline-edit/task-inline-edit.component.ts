@@ -6,6 +6,7 @@ import { TaskService } from '../../shared/services/task.service';
 import { ValidationService } from '../../shared/services/validation.service';
 import { AuthService } from '../../shared/services/auth.service';
 import { SecurityService } from '../../shared/services/security.service';
+import { taskAnimations } from '../../animations/task-animations';
 
 @Component({
   selector: 'app-task-inline-edit',
@@ -14,7 +15,10 @@ import { SecurityService } from '../../shared/services/security.service';
   styleUrls: ['./task-inline-edit.component.scss'],
   host: {
     class: 'task-inline-edit'
-  }
+  },
+  animations: [
+    ...taskAnimations
+  ]
 })
 export class TaskInlineEditComponent {
   private fb = inject(FormBuilder);
@@ -26,6 +30,7 @@ export class TaskInlineEditComponent {
   editForm!: FormGroup;
   isSubmitting = signal(false);
   errorMessage = signal<string | null>(null);
+  showSaveAnimation = signal(false);
 
   task = input<Task | null>(null);
 
@@ -200,8 +205,17 @@ export class TaskInlineEditComponent {
       const updatedTask = this.taskService.updateTask(currentTask.id, updateData);
 
       if (updatedTask) {
+        // Trigger success animation
+        this.showSaveAnimation.set(true);
+        
+        // Emit success
         this.taskUpdated.emit(updatedTask);
         this.editCancelled.emit(null); // Signal edit mode closed
+        
+        // Clear animation after it completes
+        setTimeout(() => {
+          this.showSaveAnimation.set(false);
+        }, 200);
       } else {
         throw new Error('Failed to update task');
       }

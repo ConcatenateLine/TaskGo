@@ -104,10 +104,22 @@
   padding: 1.5rem;
   transition: box-shadow 0.2s ease, transform 0.2s ease;
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
 
   &:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     transform: translateY(-2px);
+  }
+
+  &--highlighted {
+    border-color: #3b82f6;
+    background-color: rgba(59, 130, 246, 0.05);
+  }
+
+  &--newly-created {
+    border-color: #22c55e;
+    background-color: rgba(34, 197, 94, 0.05);
   }
 }
 
@@ -251,6 +263,10 @@
 
     &.loading {
       opacity: 0.7;
+      
+      .loading-spinner {
+        animation: pulse 1s ease-in-out infinite;
+      }
     }
   }
 }
@@ -438,4 +454,62 @@
 
   .error-message__icon {
     font-size: 1rem;
+  }
+
+  // Animation keyframes
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideOutRight {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+  }
+
+  @keyframes fadeInScale {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+  }
+
+  // Respect prefers-reduced-motion for animations
+  @media (prefers-reduced-motion: reduce) {
+    .loading-spinner {
+      animation: none;
+    }
+    
+    .task-list__task,
+    .task-list__create-btn,
+    .task-list__action-btn {
+      transition: none;
+    }
   }

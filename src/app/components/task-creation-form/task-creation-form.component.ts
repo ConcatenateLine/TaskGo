@@ -6,6 +6,7 @@ import { TaskService } from '../../shared/services/task.service';
 import { ValidationService } from '../../shared/services/validation.service';
 import { AuthService } from '../../shared/services/auth.service';
 import { SecurityService } from '../../shared/services/security.service';
+import { taskAnimations } from '../../animations/task-animations';
 
 @Component({
   selector: 'app-task-creation-form',
@@ -19,7 +20,10 @@ import { SecurityService } from '../../shared/services/security.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     class: 'task-creation-form'
-  }
+  },
+  animations: [
+    ...taskAnimations
+  ]
 })
 export class TaskCreationFormComponent {
   private formBuilder = inject(FormBuilder);
@@ -32,6 +36,8 @@ export class TaskCreationFormComponent {
   taskForm: FormGroup;
   isSubmitting = signal(false);
   error = signal<string | null>(null);
+  showSuccessAnimation = signal(false);
+  creationSuccess = signal(false);
   readonly priorities: TaskPriority[] = ['low', 'medium', 'high'];
   readonly projects: TaskProject[] = ['Personal', 'Work', 'Study', 'General'];
 
@@ -120,11 +126,24 @@ export class TaskCreationFormComponent {
       // Clear form after successful creation
       this.resetForm();
 
+      // Trigger success animation
+      this.creationSuccess.set(true);
+      this.showSuccessAnimation.set(true);
+
       // Emit event
       this.taskCreated.emit(createdTask);
 
       // Announce to screen readers (component level)
       this.announceToScreenReader('Task created successfully');
+
+      // Clear success animation after it completes
+      setTimeout(() => {
+        this.showSuccessAnimation.set(false);
+      }, 400);
+
+      setTimeout(() => {
+        this.creationSuccess.set(false);
+      }, 800);
 
     } catch (error: any) {
       this.error.set(error.message || 'Failed to create task');
@@ -144,7 +163,13 @@ export class TaskCreationFormComponent {
   }
 
   isCreateButtonDisabled(): boolean {
-    return this.taskForm.invalid || this.isSubmitting();
+    return this.taskForm.invalid || this.isSubmitting() || this.creationSuccess();
+  }
+
+  getCreateButtonState(): 'default' | 'submitting' | 'success' {
+    if (this.creationSuccess()) return 'success';
+    if (this.isSubmitting()) return 'submitting';
+    return 'default';
   }
 
   getTitleErrorMessage(): string {

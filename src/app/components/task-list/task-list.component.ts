@@ -20,6 +20,7 @@ import { SecurityService } from '../../shared/services/security.service';
 import { TaskInlineEditComponent } from '../task-inline-edit/task-inline-edit.component';
 import { TaskStatusComponent } from '../task-status/task-status.component';
 import { FocusTrapDirective } from '../../shared/directives/focus-trap.directive';
+import { taskAnimations } from '../../animations/task-animations';
 
 @Component({
   selector: 'app-task-list',
@@ -30,6 +31,9 @@ import { FocusTrapDirective } from '../../shared/directives/focus-trap.directive
   host: {
     class: 'task-list',
   },
+  animations: [
+    ...taskAnimations
+  ]
 })
 export class TaskListComponent implements DoCheck {
   private taskService = inject(TaskService);
@@ -43,11 +47,15 @@ export class TaskListComponent implements DoCheck {
   private deleteModalOpen = signal<boolean>(false);
   private taskToDelete = signal<string | null>(null);
   private deleteInProgress = signal<Set<string>>(new Set());
+  private newlyCreatedTaskId = signal<string | null>(null);
+  private updatedTaskId = signal<string | null>(null);
   protected readonly PRIORITY_COLORS = PRIORITY_COLORS;
   createTaskRequested = output<void>();
   taskDeleted = output<void>();
   actionError = output<Error>();
   taskStatusChanged = output<{ taskId: string; newStatus: TaskStatus }>();
+  taskCreated = output<string>();
+  taskUpdated = output<string>();
 
   constructor() {
     // Expose component for E2E testing
@@ -282,6 +290,25 @@ export class TaskListComponent implements DoCheck {
     this.createTaskRequested.emit();
   }
 
+  onTaskCreated(taskId: string): void {
+    this.newlyCreatedTaskId.set(taskId);
+    this.taskCreated.emit(taskId);
+    this.forceRefresh();
+    
+    // Clear creation highlight after animation
+    setTimeout(() => {
+      this.newlyCreatedTaskId.set(null);
+    }, 400);
+  }
+
+  isNewlyCreated(taskId: string): boolean {
+    return this.newlyCreatedTaskId() === taskId;
+  }
+
+  isRecentlyUpdated(taskId: string): boolean {
+    return this.updatedTaskId() === taskId;
+  }
+
   onTaskAction(taskId: string, action: 'edit' | 'delete' | 'status-change'): void {
     if (action === 'edit') {
       this.editingTaskId.set(taskId);
@@ -300,7 +327,14 @@ export class TaskListComponent implements DoCheck {
 
   onTaskUpdated(updatedTask: Task): void {
     this.editingTaskId.set(null);
+    this.updatedTaskId.set(updatedTask.id);
     this.forceRefresh();
+    this.taskUpdated.emit(updatedTask.id);
+    
+    // Clear highlight after animation
+    setTimeout(() => {
+      this.updatedTaskId.set(null);
+    }, 800);
   }
 
   onEditCancelled(): void {

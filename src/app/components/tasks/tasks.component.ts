@@ -31,6 +31,14 @@ export class TasksComponent {
     setTimeout(() => this.successMessage.set(null), 3000);
   }
 
+  onTaskCreatedWithAnimation(taskId: string): void {
+    // This method handles task creation animations from the list component
+    setTimeout(() => {
+      this.successMessage.set('Task created successfully!');
+      setTimeout(() => this.successMessage.set(null), 3000);
+    }, 400); // Allow animation to complete first
+  }
+
   onTaskCreationCancelled(): void {
     this.showTaskCreation.set(false);
   }
@@ -47,6 +55,14 @@ export class TasksComponent {
   onActionError(error: Error): void {
     this.errorMessage.set(error.message);
     setTimeout(() => this.errorMessage.set(null), 5000);
+  }
+
+  onTaskUpdated(taskId: string): void {
+    // Handle task update animations
+    setTimeout(() => {
+      this.successMessage.set('Task updated successfully!');
+      setTimeout(() => this.successMessage.set(null), 3000);
+    }, 800); // Allow update animation to complete
   }
 
   onFilterChange(filter: 'all' | 'TODO' | 'IN_PROGRESS' | 'DONE'): void {

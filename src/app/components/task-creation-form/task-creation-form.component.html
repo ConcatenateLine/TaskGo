@@ -1,4 +1,7 @@
-<div class="task-creation-form__container">
+<div 
+  class="task-creation-form__container"
+  [@taskCreateSuccess]="showSuccessAnimation()"
+  [class.task-creation-form__container--success]="creationSuccess()">
   <div class="task-creation-form__header">
     <h2 class="task-creation-form__title">Create New Task</h2>
     <p class="task-creation-form__subtitle">Add a new task to your workspace</p>
@@ -154,12 +157,21 @@
         class="task-creation-form__button task-creation-form__button--primary"
         [disabled]="isCreateButtonDisabled()"
         [class.task-creation-form__button--loading]="isSubmitting()"
+        [class.task-creation-form__button--success]="creationSuccess()"
+        [@loadingAnimation]="isSubmitting()"
       >
-        @if (isSubmitting()) {
-          <span class="task-creation-form__spinner"></span>
-          Creating...
-        } @else {
-          Create Task
+        @switch (getCreateButtonState()) {
+          @case ('submitting') {
+            <span class="task-creation-form__spinner" @loadingAnimation></span>
+            Creating...
+          }
+          @case ('success') {
+            <span class="task-creation-form__success-icon">✓</span>
+            Created!
+          }
+          @default {
+            Create Task
+          }
         }
       </button>
     </div>

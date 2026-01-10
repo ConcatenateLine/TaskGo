@@ -1,5 +1,8 @@
 <!-- Inline Edit Form -->
-<div class="task-inline-edit__form-container">
+<div 
+  class="task-inline-edit__form-container"
+  [@taskUpdateHighlight]="showSaveAnimation()"
+  [class.task-inline-edit__form-container--saving]="showSaveAnimation()">
   @if (errorMessage(); as error) {
     <div class="task-inline-edit__error" role="alert" aria-live="assertive">
       <span class="task-inline-edit__error-icon">⚠️</span>
@@ -146,12 +149,18 @@
         type="submit"
         class="task-inline-edit__btn task-inline-edit__btn--save"
         [disabled]="!editForm.valid || isSubmitting()"
+        [class.task-inline-edit__btn--saving]="isSubmitting()"
+        [class.task-inline-edit__btn--success]="showSaveAnimation()"
         [attr.aria-busy]="isSubmitting()"
         aria-label="Save task changes"
+        [@loadingAnimation]="isSubmitting()"
       >
         @if (isSubmitting()) {
-          <span class="task-inline-edit__spinner" aria-hidden="true"></span>
+          <span class="task-inline-edit__spinner" @loadingAnimation aria-hidden="true"></span>
           Saving...
+        } @else if (showSaveAnimation()) {
+          <span class="task-inline-edit__success-icon">✓</span>
+          Saved!
         } @else {
           💾 Save
         }
