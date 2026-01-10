@@ -228,7 +228,7 @@ export class DataRecoveryService {
       console.log(`Getting backup history for key: ${key}`);
       const backupHistory = await this.localStorageService.getBackupHistory(key);
       console.log('Backup history result:', backupHistory);
-      
+
       if (backupHistory.success) {
         report.availableBackups = backupHistory.data!.length;
         console.log(`Found ${backupHistory.data!.length} backups`);
@@ -450,6 +450,14 @@ export class DataRecoveryService {
         result.success = true;
         result.warnings.push('Data is already valid, no recovery needed');
         result.recoveryTime = Date.now() - startTime;
+
+        this.authService.logSecurityEvent({
+          type: 'DATA_RECOVERY',
+          message: 'Data recovery session completed',
+          timestamp: new Date(),
+          userId: this.authService.getUserContext()?.userId,
+        });
+        
         return {
           success: true,
           data: result,
@@ -509,7 +517,6 @@ export class DataRecoveryService {
 
     console.log('Performing auto-recovery...');
     console.log('Integrity report:', integrityReport);
-
 
     try {
       if (integrityReport.lastValidBackup) {
